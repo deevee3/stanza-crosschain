@@ -209,6 +209,7 @@ class PayPalService
             throw new Exception("PayPal void error ({$response->status()}).");
         }
 
-        return $response->json();
+        // PayPal void returns 204 No Content: json() is null, so fall back to [].
+        return $response->json() ?? [];
     }
 }
