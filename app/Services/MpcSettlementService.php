@@ -117,11 +117,51 @@ class MpcSettlementService
             ];
         }
 
-        // Production MPC path:
-        // 1. Build unsigned EIP-1559 tx
-        // 2. Hash payload
-        // 3. Call NEAR MPC contract `sign`
-        // 4. Relay to Base RPC
-        throw new Exception('Live MPC settlement requires NEAR credentials and deployed registry address.');
+        $nearAccountId = config('services.near.account_id', env('NEAR_ACCOUNT_ID', 'stanza_glenride.near'));
+        $nearPrivateKey = config('services.near.private_key', env('NEAR_PRIVATE_KEY'));
+
+        if (empty($nearAccountId) || empty($nearPrivateKey)) {
+            throw new Exception('Live MPC settlement requires NEAR credentials and deployed registry address.');
+        }
+
+        $scriptPath = base_path('scripts/mpc-settle.cjs');
+        $nodeBinary = trim(shell_exec('which node') ?: 'node');
+
+        $command = [
+            $nodeBinary,
+            $scriptPath,
+            $buyer,
+            $workId,
+            $tier,
+            $proofHash,
+            $this->licenseRegistryAddress,
+            $this->baseRpcUrl,
+            $this->nearRpcUrl,
+            $nearAccountId,
+            $this->mpcContract,
+            $this->derivationPath,
+        ];
+
+        $process = new \Symfony\Component\Process\Process($command, base_path(), [
+            'NEAR_PRIVATE_KEY' => $nearPrivateKey,
+            'PATH' => getenv('PATH'),
+            'HOME' => getenv('HOME'),
+        ]);
+
+        $process->setTimeout(120);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            $error = trim($process->getErrorOutput() ?: $process->getOutput());
+            Log::error('Live MPC settlement execution failed', ['error' => $error]);
+            throw new Exception("Live MPC settlement failed: {$error}");
+        }
+
+        $output = json_decode(trim($process->getOutput()), true);
+        if (!$output || empty($output['txHash'])) {
+            throw new Exception("Live MPC settlement returned invalid output: " . $process->getOutput());
+        }
+
+        return $output;
     }
 }

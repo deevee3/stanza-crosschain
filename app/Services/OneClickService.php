@@ -26,6 +26,11 @@ class OneClickService
      */
     public function requestQuote(array $params): array
     {
+        // 1Click rejects EVM-style origin assets ("tokenIn is not valid").
+        // Normalize erc20:<chain>:0x... to the nep141 omft form the live API
+        // accepts (verified against live /v0/tokens 2026-11-07 for USDC Base).
+        $params['originAsset'] = $this->normalizeOriginAsset($params['originAsset'] ?? null);
+
         // If running in stub mode (when ONECLICK_JWT is absent or set to stub)
         if (empty($this->jwt) || $this->jwt === 'stub') {
             return $this->getStubQuote($params);
@@ -153,6 +158,23 @@ class OneClickService
             'isStub' => false,
             'raw' => $json,
         ];
+    }
+
+    /**
+     * Normalize an origin asset ID to the form the live 1Click API accepts.
+     * The checkout UI sends EVM-style IDs (erc20:base:0x...); the live API
+     * only accepts the nep141 omft form for those tokens. Anything else
+     * passes through untouched.
+     */
+    protected function normalizeOriginAsset(?string $asset): ?string
+    {
+        if ($asset === null) {
+            return null;
+        }
+        if (preg_match('/^erc20:([a-z0-9]+):(0x[a-fA-F0-9]{40})$/', $asset, $m)) {
+            return 'nep141:' . $m[1] . '-' . strtolower($m[2]) . '.omft.near';
+        }
+        return $asset;
     }
 
     /**
