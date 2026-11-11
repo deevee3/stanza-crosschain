@@ -2,36 +2,40 @@
 
 > **NEAR Beyond Boundaries Hackathon 2026**  
 > **Tracks:** Real World, Autonomous Agents, Business, Open  
-> **Status:** Built Nov 5, 2026. Verified green across contract, agent, and UI suites.
+> **Status:** Built & verified through Nov 10, 2026 (`php artisan test` 14/14 green, `forge test` 4/4 green, `npm run build` clean).
 
 ---
 
 ## Overview
 
-**Stanza Cross-Chain** allows researchers, institutions, and readers to license scholarly works from **any blockchain** (NEAR, Solana, Ethereum, Arbitrum, Base) in a single non-custodial action:
+**Stanza Cross-Chain** is the **STANZA autonomous scholarly licensing agent**, built in two slices:
+- **Crypto Checkout (`main` branch):** Seamless wallet-connected checkout where buyers license scholarly manuscripts using **NEAR Intents 1Click** (cross-chain quote + USDC settlement on Base) and **NEAR Chain Signatures MPC** (`v1.signer`, path `ethereum-1`) to record the license on Base `LicenseRegistry.sol` with zero server EVM private keys.
+- **PayPal Slice (`paypal-slice` branch):** Companion fiat licensing slice demonstrating Web2 checkout parity alongside the on-chain NEAR/Base pipeline.
 
-1. **Buyer deposits** native crypto (NEAR, SOL, ETH, or USDC) on their home chain.
-2. **NEAR Intents 1Click API** settles USDC on Base mainnet (chain 8453) directly to the scholar's address.
-3. **NEAR Chain Signatures MPC** (threshold signature network, contract `v1.signer`, derivation path `ethereum-1`) signs the on-chain license record transaction on Base.
-4. **Base `LicenseRegistry.sol`** records the immutable license attestation, verifies caller is `onlyRelayer`, enforces replay protection, and credits the scholar in STANZA recognition.
+### How the On-Chain Flow Works (`main`)
+
+1. **Connect Wallet & Buy:** Buyer connects an injected EVM wallet (MetaMask or Coinbase Wallet via `viem` + `window.ethereum`) on `/`, selects one of the 3 scholarly manuscripts and a license tier (**Read \$1.00 / Citation \$25.00 / Commercial \$150.00**), and clicks **Buy**.
+2. **NEAR Intents 1Click Quote:** The Laravel agent requests a live `EXACT_OUTPUT` quote from the 1Click API (`https://1click.chaindefuser.com/v0/quote`) settling USDC on Base mainnet (chain 8453) directly to the scholar's address (`0x2c432c901d5844431b027dd652fbfd3cc3dd6094`).
+3. **One-Tap Wallet Pay:** Buyer clicks **Pay**, opening a single ERC-20 `transfer(depositAddress, amountIn)` confirmation in their wallet for the quote's exact `amountIn` in Base USDC (`0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`). A small manual fallback line (`or send manually to 0x...`) remains available underneath.
+4. **NEAR Chain Signatures MPC Settlement:** Once `WatchSettlement` observes 1Click status `SUCCESS` and `SettleLicense` passes the 4 pre-signing verification gates, `MpcSettlementService` invokes `scripts/mpc-settle.cjs` to request a threshold signature from NEAR `v1.signer` (derivation path `ethereum-1`) and relays `recordLicense(buyer, workId, tier, proofHash)` to Base `LicenseRegistry.sol`.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Buyer as Buyer (Any Chain)
-    participant UI as Stanza Checkout (Inertia/React 19)
+    actor Buyer as Buyer (MetaMask / Coinbase Wallet)
+    participant UI as Stanza Checkout (Inertia/React 19 + viem)
     participant OneClick as NEAR Intents 1Click API
     participant Agent as Laravel Autonomous Watcher
     participant MPC as NEAR MPC Contract (v1.signer)
     participant Base as Base Mainnet (LicenseRegistry.sol)
     actor Scholar as Scholar Address
 
-    Buyer->>UI: Select Work, Tier & Origin Asset (e.g. NEAR / SOL)
-    UI->>Agent: Request Quote (POST /api/quote)
+    Buyer->>UI: Connect Wallet, Select Manuscript & Tier ($1 / $25 / $150)
+    UI->>Agent: Click Buy (POST /api/quote)
     Agent->>OneClick: POST /v0/quote (Exact Output USDC Base)
-    OneClick-->>Agent: Unique Deposit Address & Quote ID
-    Agent-->>UI: Display Deposit Address to Buyer
-    Buyer->>OneClick: Deposit Asset to 1Click Address
+    OneClick-->>Agent: Unique Deposit Address & Exact amountIn
+    Agent-->>UI: Return Quoted License (polled via GET /api/licenses/{id})
+    Buyer->>OneClick: Click Pay -> 1-Tap Base USDC transfer(depositAddress, amountIn)
     OneClick->>Scholar: Settle USDC Proceeds on Base
     OneClick-->>Agent: Status: SUCCESS (depositTxHash)
     
@@ -45,6 +49,15 @@ sequenceDiagram
     Base-->>Base: Enforce onlyRelayer & settled[proofHash]
     Base-->>Buyer: Emit LicenseRecorded & ScholarCredited
 ```
+
+---
+
+## Live Status & Honest Pre-Submission Disclosure (For Judges)
+
+- **Catalog & Tiers (Live):** 3 manuscripts by D'Vaughn House (Glenride) with live demo tier pricing: **Read \$1.00 / Citation \$25.00 / Commercial \$150.00** (note: `database/seeders/DatabaseSeeder.php` seeds Read at \$10.00 by default; the live SQLite database has Read set to **\$1.00** for live demo affordability).
+- **Contract (Live on Base Mainnet):** [`LicenseRegistry.sol`](src/LicenseRegistry.sol) is deployed at [`0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00`](https://basescan.org/address/0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00) with immutable `relayer` set to `0x4D538abf011e0885a6f87667Db466837B10b49f9` (derived from `stanza_glenride.near` + `ethereum-1`).
+- **1Click Quote & Seamless Checkout (Live & Verified):** Live quotes against `https://1click.chaindefuser.com/v0/quote` return real Base deposit addresses and exact USDC `amountIn` values; the one-tap `viem` + `window.ethereum` transfer flow is wired and verified.
+- **MPC Settlement Leg Status (Wired, Unsettled Live):** The live MPC settlement path ([`app/Services/MpcSettlementService.php`](app/Services/MpcSettlementService.php) + [`scripts/mpc-settle.cjs`](scripts/mpc-settle.cjs), including `LicenseRecorded` event verification) is implemented and the NEAR key on `stanza_glenride.near` is registered on-chain for `v1.signer`, **but no live settlement transaction has landed on Base mainnet yet (the MPC relayer `0x4D538abf011e0885a6f87667Db466837B10b49f9` nonce on Base is still `0`)**. `--dry-run` against live Base RPC produces the unsigned EIP-1559 signing hash cleanly.
 
 ---
 
@@ -65,7 +78,9 @@ sequenceDiagram
    - `amountOut` and `destination` match the scholar address and quote exactly.
    - `work_id`, `tier`, and `buyer_address` match the licensed entity.
    - `isSettled` on Base RPC is `false`.
-5. **Proceeds Separation**:
+5. **Post-Relay `LicenseRecorded` Event Verification**:
+   - [`scripts/mpc-settle.cjs`](scripts/mpc-settle.cjs) verifies not only `receipt.status === '0x1'` on Base, but also that the `LicenseRecorded(bytes32 indexed workId, address indexed buyer, string tier, bytes32 indexed proofHash, address scholar)` event is present in `receipt.logs` and matches `workId`, `buyer`, `tier`, and `proofHash`.
+6. **Proceeds Separation**:
    - 1Click USDC settles directly to the author/scholar address set per work.
    - The MPC derived relayer holds only gas ETH for Base execution; it never custodies author proceeds.
 
@@ -75,16 +90,16 @@ sequenceDiagram
 
 | Network | Contract / Asset | Address | Details |
 | :--- | :--- | :--- | :--- |
-| **Base Mainnet (8453)** | `LicenseRegistry.sol` | [`0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00`](https://basescan.org/address/0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00) | Deployed Sat Nov 7, 2026. Deploy tx [`0xf2769b808992a69969a5909e1b5359cfc375a6400092e546845b2639695d4065`](https://basescan.org/tx/0xf2769b808992a69969a5909e1b5359cfc375a6400092e546845b2639695d4065). Relayer (immutable): `0x4D538abf011e0885a6f87667Db466837B10b49f9`. [LicenseRegistry.sol](src/LicenseRegistry.sol) |
+| **Base Mainnet (8453)** | `LicenseRegistry.sol` | [`0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00`](https://basescan.org/address/0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00) | Deployed Sat Nov 7, 2026. Deploy tx [`0xf2769b808992a69969a5909e1b5359cfc375a6400092e546845b2639695d4065`](https://basescan.org/tx/0xf2769b808992a69969a5909e1b5359cfc375a6400092e546845b2639695d4065). Relayer (immutable): `0x4D538abf011e0885a6f87667Db466837B10b49f9` (nonce `0`). [LicenseRegistry.sol](src/LicenseRegistry.sol) |
 | **NEAR Mainnet** | MPC Signer Contract | `v1.signer` | Root key: `3tFRbM...` |
 | **Derivation Path** | MPC Path | `ethereum-1` | Relayer EVM Address `0x4D538abf011e0885a6f87667Db466837B10b49f9` (`stanza_glenride.near`) |
-| **Base USDC** | Settlement Asset | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` | Direct scholar proceeds |
+| **Base USDC** | Settlement Asset | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` | Direct scholar proceeds (6 decimals) |
 
 ---
 
 ## "Do X → See Y" Cold Verification Steps
 
-Run these commands directly in your shell from a fresh clone to verify every subsystem.
+Run these commands directly in your shell from a fresh clone (`main` branch) to verify every subsystem.
 
 ### Step 1: Verify Smart Contracts & Replay Protection (Foundry)
 
@@ -105,33 +120,22 @@ Suite result: ok. 4 passed; 0 failed; 0 skipped
 
 ---
 
-### Step 2: Verify NEAR Chain Signatures MPC Derivation (Path `ethereum-1`)
+### Step 2: Verify NEAR Chain Signatures MPC Derivation (Path `ethereum-1`) & Dry-Run Settlement
 
-Derive the deterministic EVM address for any NEAR account without third-party dependencies:
+Derive the deterministic EVM address for any NEAR account and dry-run the Base EIP-1559 settlement builder without spending gas:
 
 ```bash
-# Run the internal verification test suite
+# Run the internal derivation verification test suite
 python3 scripts/derive-mpc-address.py --test
 
-# Derive EVM relayer address for a NEAR account
-python3 scripts/derive-mpc-address.py example.near
-```
+# Derive EVM relayer address for stanza_glenride.near
+python3 scripts/derive-mpc-address.py stanza_glenride.near
 
-**Expected output:**
-```
-Running Chain Signatures derivation verification tests...
-  [PASS] Mainnet example.near + ethereum-1 -> 0xEF4Ea05e5c11057DeCC8E1bd6F5369f2acD91fA5
-  [PASS] Testnet example.near + ethereum-1 -> 0x6787a751B4592A3871267c320C19cA01e5aBAec4
-All derivation tests passed successfully!
-
-==================================================
-  NEAR Chain Signatures — MPC Derived Relayer Address
-==================================================
-  NEAR Account ID : example.near
-  Derivation Path : ethereum-1
-  Network         : mainnet (v1.signer)
-  Derived EVM     : 0xEF4Ea05e5c11057DeCC8E1bd6F5369f2acD91fA5
-==================================================
+# Dry-run the live MPC settlement script against Base mainnet RPC (no spend)
+node scripts/mpc-settle.cjs \
+  0xB001234567890123456789012345678901234567 \
+  0x2c0a4bfc89a1c985fb87c1bc7bcc6dafc49780b07fa1372e7b704478d8134e7f \
+  read 0x1234 0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00 --dry-run
 ```
 
 ---
@@ -144,17 +148,6 @@ Simulate deployment of `LicenseRegistry.sol` to Base (chain 8453) using the deri
 RELAYER_ADDRESS=0xEF4Ea05e5c11057DeCC8E1bd6F5369f2acD91fA5 \
   forge script script/DeployLicenseRegistry.s.sol:DeployLicenseRegistry \
   --fork-url https://mainnet.base.org -vvv
-```
-
-**Expected output:**
-```
-== Logs ==
-  --- Deploying LicenseRegistry to Base ---
-  Chain ID: 8453
-  MPC Relayer Address (Constructor Arg): 0xEF4Ea05e5c11057DeCC8E1bd6F5369f2acD91fA5
-  LicenseRegistry deployed successfully at: 0x5b73C5498c1E3b4dbA84de0F1833c4a029d90519
-  Immutable relayer verified: 0xEF4Ea05e5c11057DeCC8E1bd6F5369f2acD91fA5
-SIMULATION COMPLETE.
 ```
 
 ---
@@ -191,28 +184,60 @@ php artisan test
   ✓ scholar page case insensitive lookup
   ✓ scholar page empty state for unknown address
 
-  Tests:    14 passed (138 assertions)
+  Tests:    14 passed (139 assertions)
 ```
 
 ---
 
-### Step 5: Run the Guest Checkout UI & Scholar Portfolio
+### Step 5: How to Run the Demo (`main` Branch)
 
-```bash
-# Seed the catalog: 3 manuscripts by D'Vaughn House
-php artisan db:seed
+#### Required Environment Variables (`.env`)
+Copy `.env.example` to `.env`. If `ONECLICK_JWT` or `LICENSE_REGISTRY_ADDRESS` is omitted, the app runs in deterministic stub mode so tests and local previews work without credentials. For live mode:
 
-# Build frontend assets
-npm run build
+```dotenv
+QUEUE_CONNECTION=database
 
-# Start local server
-php artisan serve
+# NEAR Intents 1Click API
+ONECLICK_API_URL=https://1click.chaindefuser.com
+ONECLICK_JWT=<your-1click-partner-jwt>
+
+# NEAR Chain Signatures MPC (mainnet)
+NEAR_NETWORK_ID=mainnet
+NEAR_NODE_URL=https://rpc.mainnet.near.org
+NEAR_MPC_CONTRACT=v1.signer
+NEAR_ACCOUNT_ID=stanza_glenride.near
+NEAR_PRIVATE_KEY=<your-near-ed25519-key>
+
+# Base Mainnet Settlement
+BASE_CHAIN_ID=8453
+BASE_RPC_URL=https://mainnet.base.org
+LICENSE_REGISTRY_ADDRESS=0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00
 ```
 
-Visit:
-- **Checkout:** `http://localhost:8000/` (or `http://localhost:8000/checkout`)
-- **License Lookup:** `http://localhost:8000/lookup`
-- **Scholar Portfolio:** `http://localhost:8000/scholar/0x2c432c901d5844431b027dd652fbfd3cc3dd6094` (D'Vaughn House — both of his manuscripts land here)
+#### Start the Demo Application
+
+```bash
+# (Fresh install only) Run migrations & seed the 3 manuscripts by D'Vaughn House
+# Note: Do not re-seed on the live demo instance where the Read tier is set to $1.00.
+php artisan migrate
+php artisan db:seed
+
+# Build frontend assets (React 19 + Inertia + viem)
+npm run build
+
+# Terminal 1: Start HTTP server
+php artisan serve --host=127.0.0.1 --port=8005
+
+# Terminal 2: Start autonomous quote & settlement watcher worker
+php artisan queue:work --tries=0
+```
+
+#### Routes & Demo Script
+- **Checkout (`Connect Wallet` → `Buy` → `Pay`):** `http://127.0.0.1:8005/` (or `http://127.0.0.1:8005/checkout`)
+- **License Lookup:** `http://127.0.0.1:8005/lookup`
+- **Scholar Portfolio:** `http://127.0.0.1:8005/scholar/0x2c432c901d5844431b027dd652fbfd3cc3dd6094` (D'Vaughn House — all 3 manuscripts and their licenses)
+- **Demo Plan & Video Script:** [`docs/monday-demo-plan.md`](docs/monday-demo-plan.md)
+- **MPC Settlement Script:** [`scripts/mpc-settle.cjs`](scripts/mpc-settle.cjs)
 
 ---
 
@@ -233,18 +258,24 @@ Visit:
 │   └── Services/
 │       ├── OneClickService.php                  # NEAR Intents 1Click integration
 │       └── MpcSettlementService.php             # NEAR MPC + Base RPC relay
-├── docs/antigravity/
-│   ├── README.md                                # Hackathon work orders (1-7)
-│   └── SCOPE.md                                 # Frozen hackathon scope
+├── docs/
+│   ├── antigravity/
+│   │   ├── README.md                            # Hackathon work orders
+│   │   └── SCOPE.md                             # Frozen hackathon scope
+│   ├── manuscripts/                             # Full text of the 3 scholarly works
+│   └── monday-demo-plan.md                      # Demo walkthrough & video script
 ├── resources/js/
+│   ├── lib/
+│   │   └── wallet.ts                            # Injected wallet helper (viem + window.ethereum)
 │   └── pages/
-│       ├── checkout.tsx                         # Guest checkout & quote tracker
+│       ├── checkout.tsx                         # Seamless 1-tap checkout & quote tracker
 │       ├── lookup.tsx                           # On-chain proof & BaseScan lookup
 │       └── scholar.tsx                          # Scholar attribution & license ledger
 ├── script/
 │   └── DeployLicenseRegistry.s.sol              # Foundry Base deploy script
 ├── scripts/
-│   └── derive-mpc-address.py                    # Standalone NEAR MPC derive script
+│   ├── derive-mpc-address.py                    # Standalone NEAR MPC derive script
+│   └── mpc-settle.cjs                           # Live NEAR MPC sign + Base EIP-1559 relay
 ├── src/
 │   └── LicenseRegistry.sol                      # Immutable Base settlement registry
 └── test/
