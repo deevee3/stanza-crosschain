@@ -36,7 +36,7 @@ class CheckoutController extends Controller
         // EVM address would be lost funds even though the quote succeeds).
         // buyer_address stays the EVM licensee recorded on Base.
         $refundRules = match ($request->input('deposit_chain')) {
-            'near' => ['required', 'string', 'min:2', 'max:64', 'regex:/^([0-9a-f]{64}|[a-z0-9][a-z0-9_\-\.]*[a-z0-9])$/'],
+            'near' => ['required', 'string', 'min:2', 'max:64', 'regex:/^(?!0x)([0-9a-f]{64}|[a-z0-9][a-z0-9_\-\.]*[a-z0-9])$/'],
             'solana' => ['required', 'string', 'regex:/^[1-9A-HJ-NP-Za-km-z]{32,44}$/'],
             default => ['nullable', 'string', 'regex:/^0x[a-fA-F0-9]{40}$/'],
         };

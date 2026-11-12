@@ -277,7 +277,7 @@ export default function Checkout({ works, returnLicenseId }: Props) {
             if (needsRefundAddress) {
                 const validRefund =
                     selectedChain.id === 'near'
-                        ? /^([0-9a-f]{64}|[a-z0-9][a-z0-9_\-.]*[a-z0-9])$/.test(trimmedRefund) &&
+                        ? /^(?!0x)([0-9a-f]{64}|[a-z0-9][a-z0-9_\-.]*[a-z0-9])$/.test(trimmedRefund) &&
                           trimmedRefund.length >= 2 &&
                           trimmedRefund.length <= 64
                         : /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(trimmedRefund);
