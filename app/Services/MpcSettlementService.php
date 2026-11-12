@@ -75,11 +75,11 @@ class MpcSettlementService
     /**
      * Encode recordLicense call data:
      * recordLicense(address buyer, bytes32 workId, string tier, bytes32 proofHash)
-     * Selector: keccak256("recordLicense(address,bytes32,string,bytes32)") = 0x48967ddc
+     * Selector: keccak256("recordLicense(address,bytes32,string,bytes32)") = 0x5c2b9e85
      */
     public function encodeRecordLicenseCall(string $buyer, string $workId, string $tier, string $proofHash): string
     {
-        $selector = '0x48967ddc';
+        $selector = '0x5c2b9e85';
 
         $cleanBuyer = str_pad(ltrim(strtolower(str_replace('0x', '', $buyer)), ''), 64, '0', STR_PAD_LEFT);
         $cleanWorkId = str_pad(str_replace('0x', '', $workId), 64, '0', STR_PAD_RIGHT);

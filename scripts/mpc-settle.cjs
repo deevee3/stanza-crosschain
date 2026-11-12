@@ -145,9 +145,9 @@ function rlpEncode(input) {
 }
 
 // ABI encoder for recordLicense(address buyer, bytes32 workId, string tier, bytes32 proofHash)
-// Selector: 0x48967ddc
+// Selector: 0x5c2b9e85 (keccak256("recordLicense(address,bytes32,string,bytes32)")[:4], verified via cast + the compiler artifact's methodIdentifiers)
 function encodeRecordLicenseCall(buyer, workId, tier, proofHash) {
-  const selector = '48967ddc';
+  const selector = '5c2b9e85';
   const cleanBuyer = buyer.toLowerCase().replace('0x', '').padStart(64, '0');
   const cleanWorkId = workId.toLowerCase().replace('0x', '').padEnd(64, '0');
   const cleanProof = proofHash.toLowerCase().replace('0x', '').padEnd(64, '0');
@@ -319,7 +319,8 @@ async function main() {
       priorityFee: priorityFee.toString(),
       maxFeePerGas: maxFeePerGas.toString(),
       gasLimit: gasLimit.toString(),
-      signingHash: '0x' + signingHash.toString('hex')
+      signingHash: '0x' + signingHash.toString('hex'),
+      callData
     }, null, 2));
     return;
   }
