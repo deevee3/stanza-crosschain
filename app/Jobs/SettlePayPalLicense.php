@@ -55,8 +55,11 @@ class SettlePayPalLicense implements ShouldQueue
             return;
         }
 
-        if (!in_array($this->license->status, ['authorized', 'captured'], true)) {
-            throw new Exception("PayPal settlement requires an authorized license; license #{$this->license->id} is {$this->license->status}.");
+        // 'signing' is retryable: a license whose MPC step failed after the
+        // status flipped to 'signing' re-enters here and flows straight to
+        // GATE 4 (gates 1-3 run only for 'authorized'), like 'captured'.
+        if (!in_array($this->license->status, ['authorized', 'captured', 'signing'], true)) {
+            throw new Exception("PayPal settlement requires an authorized, captured, or signing license; license #{$this->license->id} is {$this->license->status}.");
         }
 
         // GATE 1: re-fetch the authorization from PayPal and verify amount.

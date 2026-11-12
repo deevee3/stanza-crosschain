@@ -125,7 +125,13 @@ class MpcSettlementService
         }
 
         $scriptPath = base_path('scripts/mpc-settle.cjs');
-        $nodeBinary = trim(shell_exec('which node') ?: 'node');
+        // The PHP container has no node on PATH; environments pin the host
+        // node binary (mounted into the container under /home/housedv) via
+        // NODE_BINARY. Fall back to `which node` when unset.
+        $nodeBinary = (string) (config('services.node.binary', env('NODE_BINARY')) ?: trim((string) shell_exec('which node')));
+        if ($nodeBinary === '') {
+            $nodeBinary = 'node';
+        }
 
         $command = [
             $nodeBinary,

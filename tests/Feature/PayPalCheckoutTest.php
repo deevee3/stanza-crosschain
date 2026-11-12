@@ -299,6 +299,40 @@ class PayPalCheckoutTest extends TestCase
         Http::assertNotSent(fn ($request) => str_contains($request->url(), '/capture'));
     }
 
+    public function test_paypal_signing_license_redispatch_reaches_settlement(): void
+    {
+        $this->fakePayPal();
+
+        // A license that died mid-settlement (the MPC step failed after the
+        // status flipped to 'signing') must be retryable: re-dispatching
+        // flows straight to the on-chain leg instead of throwing at the
+        // status guard, and never re-runs gates 1-3 (no second capture).
+        $license = License::create([
+            'work_id' => $this->work->id,
+            'buyer_address' => '0xc09ae916febb1d51de1a6eb5f4353ae48c348f84',
+            'buyer_email' => 'buyer@example.com',
+            'tier' => 'read',
+            'price_usd' => 10.00,
+            'payment_method' => 'paypal',
+            'paypal_order_id' => 'ORDER-123',
+            'paypal_authorization_id' => 'AUTH-1',
+            'paypal_capture_id' => 'CAP-1',
+            'status' => 'signing',
+        ]);
+
+        (new SettlePayPalLicense($license))->handle(
+            app(\App\Services\PayPalService::class),
+            app(\App\Services\AttestationAgent::class),
+            app(\App\Services\MpcSettlementService::class)
+        );
+
+        $license->refresh();
+        $this->assertEquals('settled', $license->status);
+        $this->assertNotEmpty($license->settlement_tx_hash);
+
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), '/capture'));
+    }
+
     public function test_paypal_return_is_idempotent(): void
     {
         $license = $this->createPayPalLicense();
