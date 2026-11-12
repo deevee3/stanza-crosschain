@@ -11,6 +11,19 @@ class OneClickService
     protected string $baseUrl;
     protected ?string $jwt;
 
+    /**
+     * Deposit addresses quoted through THIS instance, with their status
+     * poll counts. Instance-level on purpose: each job resolves a fresh
+     * service, so a poll from a fresh instance — e.g. WatchSettlement
+     * checking an address quoted by RequestLicenseQuote's instance — sees
+     * the terminal SUCCESS state, while a poll on the instance that
+     * created the quote sees the fresh-quote PENDING_DEPOSIT state first.
+     * Do NOT make this static: under the sync queue driver a release()
+     * never re-executes the job, so WatchSettlement gets exactly one poll
+     * and it must see SUCCESS.
+     */
+    protected array $stubQuotedAddresses = [];
+
     public function __construct(?string $baseUrl = null, ?string $jwt = null)
     {
         $this->baseUrl = rtrim($baseUrl ?? config('services.oneclick.base_url', env('ONECLICK_API_URL', 'https://1click.chaindefuser.com')), '/');
@@ -190,6 +203,10 @@ class OneClickService
         $quoteId = 'stub_quote_' . bin2hex(random_bytes(8));
         $depositAddress = '0x' . hash('sha256', $quoteId . $recipient);
 
+        // Remember the quote on this instance: its first status poll
+        // reports PENDING_DEPOSIT, like a fresh live quote.
+        $this->stubQuotedAddresses[$depositAddress] = 0;
+
         return [
             'quoteId' => $quoteId,
             'depositAddress' => $depositAddress,
@@ -204,10 +221,33 @@ class OneClickService
     }
 
     /**
-     * Deterministic stub status for testing.
+     * Stateful stub status for testing.
+     *
+     * An address quoted through THIS instance reports PENDING_DEPOSIT on
+     * its first poll — a fresh quote has no deposit yet, like the live
+     * API — and SUCCESS on later polls, simulating the deposit landing
+     * between polls. An address this instance never quoted reports
+     * SUCCESS, preserving the stub's long-standing behavior for the job
+     * chain (each job resolves a fresh service instance, and under the
+     * sync queue driver WatchSettlement gets exactly one poll).
      */
     protected function getStubStatus(string $depositAddress): array
     {
+        if (array_key_exists($depositAddress, $this->stubQuotedAddresses)) {
+            $polls = $this->stubQuotedAddresses[$depositAddress];
+            $this->stubQuotedAddresses[$depositAddress] = $polls + 1;
+
+            if ($polls === 0) {
+                return [
+                    'depositAddress' => $depositAddress,
+                    'status' => 'PENDING_DEPOSIT',
+                    'depositTxHash' => null,
+                    'settledTxHash' => null,
+                    'isStub' => true,
+                ];
+            }
+        }
+
         return [
             'depositAddress' => $depositAddress,
             'status' => 'SUCCESS',
