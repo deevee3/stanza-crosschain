@@ -1,28 +1,34 @@
 # Stanza Cross-Chain: License It From Anywhere
 
-> **NEAR Beyond Boundaries Hackathon 2026**  
-> **Tracks:** Real World, Autonomous Agents, Business, Open  
-> **Status:** Built & verified through Nov 10, 2026 (`php artisan test` 14/14 green, `forge test` 4/4 green, `npm run build` clean).
+> **Live:** https://crosschain.spinwave.tech
+> **NEAR Beyond Boundaries Hackathon 2026**
+> **Tracks:** Real World, Autonomous Agents, Business, Open
+> **Status (Nov 12, 2026):** Live and settled. License #17 recorded on Base mainnet. `php artisan test` 81/81 green (365 assertions), `forge test` 4/4 green, `npm run build` clean.
 
 ---
 
-## Overview
+## What this is (plain version)
 
-**Stanza Cross-Chain** is the **STANZA autonomous scholarly licensing agent**, built in two slices:
-- **Crypto Checkout (`main` branch):** Seamless wallet-connected checkout where buyers license scholarly manuscripts using **NEAR Intents 1Click** (cross-chain quote + USDC settlement on Base) and **NEAR Chain Signatures MPC** (`v1.signer`, path `ethereum-1`) to record the license on Base `LicenseRegistry.sol` with zero server EVM private keys.
-- **PayPal Slice (`paypal-slice` branch):** Companion fiat licensing slice demonstrating Web2 checkout parity alongside the on-chain NEAR/Base pipeline.
+Scholars write works that get read, shared, and built on — usually without payment, attribution, or any record that a license ever existed. STANZA Cross-Chain fixes the missing record: a reader picks a work and a license tier, pays from any of four chains (or with PayPal), the money goes straight to the scholar, and the license is recorded on Base where anyone can verify it. No server anywhere holds a private key that could move funds or fake a license. Signing is done by NEAR's MPC network, and the record lives on Base.
 
-### How the On-Chain Flow Works (`main`)
+STANZA is the licensing system. SpinWave is the storage layer underneath it. This repo is the cross-chain checkout and settlement agent.
 
-1. **Connect Wallet & Buy:** Buyer connects an injected EVM wallet (MetaMask or Coinbase Wallet via `viem` + `window.ethereum`) on `/`, selects one of the 3 scholarly manuscripts and a license tier (**Read \$1.00 / Citation \$25.00 / Commercial \$150.00**), and clicks **Buy**.
-2. **NEAR Intents 1Click Quote:** The Laravel agent requests a live `EXACT_OUTPUT` quote from the 1Click API (`https://1click.chaindefuser.com/v0/quote`) settling USDC on Base mainnet (chain 8453) directly to the scholar's address (`0x2c432c901d5844431b027dd652fbfd3cc3dd6094`).
-3. **One-Tap Wallet Pay:** Buyer clicks **Pay**, opening a single ERC-20 `transfer(depositAddress, amountIn)` confirmation in their wallet for the quote's exact `amountIn` in Base USDC (`0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`). A small manual fallback line (`or send manually to 0x...`) remains available underneath.
-4. **NEAR Chain Signatures MPC Settlement:** Once `WatchSettlement` observes 1Click status `SUCCESS` and `SettleLicense` passes the 4 pre-signing verification gates, `MpcSettlementService` invokes `scripts/mpc-settle.cjs` to request a threshold signature from NEAR `v1.signer` (derivation path `ethereum-1`) and relays `recordLicense(buyer, workId, tier, proofHash)` to Base `LicenseRegistry.sol`.
+---
+
+## How it works
+
+### Crypto checkout (NEAR Intents 1Click + NEAR Chain Signatures MPC)
+
+1. **Pick a chain, a work, a tier.** The buyer opens the checkout, picks a "Pay From" chain — Base, NEAR, Solana, or Arbitrum — selects one of the catalog works and a license tier (**Read \$1.00 / Citation \$25.00 / Commercial \$150.00 / Exclusive \$500.00**), and connects a wallet.
+2. **Live quote.** The Laravel agent requests an `EXACT_OUTPUT` quote from the 1Click API (`https://1click.chaindefuser.com/v0/quote`) settling USDC on Base mainnet (chain 8453) directly to the scholar's address (`0x2c432c901d5844431b027dd652fbfd3cc3dd6094`).
+3. **Pay.** On Base, it is one tap: a single ERC-20 `transfer(depositAddress, amountIn)` confirmation for the quote's exact `amountIn` in Base USDC (`0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`). On NEAR, Solana, and Arbitrum, the checkout shows the 1Click deposit address, the exact quoted amount in the origin asset, and a deadline — the buyer sends from their own wallet on that chain. Refunds go to the origin chain: NEAR requires an existing NEAR account, Solana requires a Solana address, and EVM chains default the refund to the buyer address.
+4. **Watch and verify.** `WatchSettlement` polls 1Click until the deposit shows `SUCCESS`. `SettleLicense` then runs the pre-signing verification gates (see Security).
+5. **MPC settlement.** `MpcSettlementService` invokes `scripts/mpc-settle.cjs` to request a threshold signature from NEAR `v1.signer` (derivation path `ethereum-1`) and relays `recordLicense(buyer, workId, tier, proofHash)` to `LicenseRegistry.sol` on Base. The license is on-chain, verifiable by anyone on BaseScan.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Buyer as Buyer (MetaMask / Coinbase Wallet)
+    actor Buyer as Buyer (wallet on Base / NEAR / Solana / Arbitrum)
     participant UI as Stanza Checkout (Inertia/React 19 + viem)
     participant OneClick as NEAR Intents 1Click API
     participant Agent as Laravel Autonomous Watcher
@@ -30,17 +36,17 @@ sequenceDiagram
     participant Base as Base Mainnet (LicenseRegistry.sol)
     actor Scholar as Scholar Address
 
-    Buyer->>UI: Connect Wallet, Select Manuscript & Tier ($1 / $25 / $150)
-    UI->>Agent: Click Buy (POST /api/quote)
+    Buyer->>UI: Pick chain, manuscript & tier ($1 / $25 / $150 / $500)
+    UI->>Agent: Request quote (POST /api/quote)
     Agent->>OneClick: POST /v0/quote (Exact Output USDC Base)
-    OneClick-->>Agent: Unique Deposit Address & Exact amountIn
-    Agent-->>UI: Return Quoted License (polled via GET /api/licenses/{id})
-    Buyer->>OneClick: Click Pay -> 1-Tap Base USDC transfer(depositAddress, amountIn)
-    OneClick->>Scholar: Settle USDC Proceeds on Base
+    OneClick-->>Agent: Unique deposit address & exact amountIn
+    Agent-->>UI: Return quoted license (polled via GET /api/licenses/{id})
+    Buyer->>OneClick: Base: 1-tap USDC transfer. Other chains: send to deposit address
+    OneClick->>Scholar: Settle USDC proceeds on Base
     OneClick-->>Agent: Status: SUCCESS (depositTxHash)
-    
+
     rect rgb(20, 30, 25)
-    Note over Agent: 4-Gate Pre-Signing Verification<br/>1. Status == SUCCESS<br/>2. amountOut & destination match scholar<br/>3. workId, tier, buyer match<br/>4. isSettled(proofHash) == false
+    Note over Agent: Pre-Signing Verification<br/>1. Status == SUCCESS<br/>2. amountOut & destination match scholar<br/>3. workId, tier, buyer match<br/>4. isSettled(proofHash) == false
     end
 
     Agent->>MPC: Call `sign` (payload = txHash, path = ethereum-1)
@@ -50,18 +56,37 @@ sequenceDiagram
     Base-->>Buyer: Emit LicenseRecorded & ScholarCredited
 ```
 
+### PayPal checkout (fiat rail, same settlement)
+
+The same licensing agent with a second payment rail: **PayPal (Sandbox)**. The buyer picks a work and tier, chooses PayPal, and the app creates an order with intent `AUTHORIZE` — PayPal holds the funds while the attestation agent reviews. On release it captures; on hold it voids, so the buyer is never charged. After capture, the same MPC settlement records the license on Base. Email identifies the buyer; a wallet address is optional (a deterministic on-chain address is derived when none is given). Full detail in [docs/paypal-submission.md](docs/paypal-submission.md) and the PayPal section below.
+
+### Scholar uploads (signed, content-addressed)
+
+Scholars upload works through an authenticated API — no upload page yet:
+
+1. `GET /api/upload-challenge?address=<scholar wallet>` returns an EIP-191 message with a single-use nonce (10-minute expiry).
+2. The scholar signs it with their wallet.
+3. `POST /api/works` verifies the signature (pure-PHP secp256k1 recovery, no gmp extension needed), stores the file, and creates the work. `work_id` is the keccak256 hash of the file bytes, so the work is fingerprinted by its content, not its title. Uploading the same file twice returns 409 with the existing work. Files: 25 MB cap, pdf/epub/txt/md.
+
+### Sale notifications
+
+When a license settles, `ScholarNotificationService` emails the scholar (via Resend) — or a configured fallback address when the work has no scholar email. Notifications are idempotent (one email per license, tracked by `notification_sent_at`), never throw, and never fail a settlement. If the Resend mailer is configured without a key, the service skips honestly with a log line instead of stamping a false "notified."
+
 ---
 
-## Live Status & Honest Pre-Submission Disclosure (For Judges)
+## Live status & honest disclosure (Nov 12, 2026)
 
-- **Catalog & Tiers (Live):** 3 manuscripts by D'Vaughn House (Glenride) with live demo tier pricing: **Read \$1.00 / Citation \$25.00 / Commercial \$150.00** (note: `database/seeders/DatabaseSeeder.php` seeds Read at \$10.00 by default; the live SQLite database has Read set to **\$1.00** for live demo affordability).
-- **Contract (Live on Base Mainnet):** [`LicenseRegistry.sol`](src/LicenseRegistry.sol) is deployed at [`0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00`](https://basescan.org/address/0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00) with immutable `relayer` set to `0x4D538abf011e0885a6f87667Db466837B10b49f9` (derived from `stanza_glenride.near` + `ethereum-1`).
-- **1Click Quote & Seamless Checkout (Live & Verified):** Live quotes against `https://1click.chaindefuser.com/v0/quote` return real Base deposit addresses and exact USDC `amountIn` values; the one-tap `viem` + `window.ethereum` transfer flow is wired and verified.
-- **MPC Settlement Leg Status (Wired, Unsettled Live):** The live MPC settlement path ([`app/Services/MpcSettlementService.php`](app/Services/MpcSettlementService.php) + [`scripts/mpc-settle.cjs`](scripts/mpc-settle.cjs), including `LicenseRecorded` event verification) is implemented and the NEAR key on `stanza_glenride.near` is registered on-chain for `v1.signer`, **but no live settlement transaction has landed on Base mainnet yet (the MPC relayer `0x4D538abf011e0885a6f87667Db466837B10b49f9` nonce on Base is still `0`)**. `--dry-run` against live Base RPC produces the unsigned EIP-1559 signing hash cleanly.
+- **Live site:** https://crosschain.spinwave.tech (homelab server + Cloudflare Tunnel; single queue worker, `--tries=0` — see [docs/queue-worker.md](docs/queue-worker.md)).
+- **Catalog & tiers:** 3 catalog works, scholar/payee `0x2c432c901d5844431b027dd652fbfd3cc3dd6094`. Tiers: Read **\$1.00** / Citation **\$25.00** / Commercial **\$150.00** / Exclusive **\$500.00**. Notes: the seeder defaults Read to \$10.00; the live database has Read at \$1.00 for demo affordability. The \$500 Exclusive price is a placeholder.
+- **Contract (Base mainnet):** [`LicenseRegistry.sol`](src/LicenseRegistry.sol) at [`0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00`](https://basescan.org/address/0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00), immutable `relayer` `0x4D538abf011e0885a6f87667Db466837B10b49f9` (derived from `stanza_glenride.near` + `ethereum-1`).
+- **Works registered on-chain:** all 3 catalog works. Registration txs: work 4 [`0x783e48b5…`](https://basescan.org/tx/0x783e48b56ddfdc271b3933683639bc4a973cbc5017d2d7bdf5788b672b27a9aa) (block 56560780), work 5 [`0xa2c1b99a…`](https://basescan.org/tx/0xa2c1b99a3478f742213c742491262fe98b8eb6df508e5455a6a3101c639960a3) (block 56561967), work 6 [`0xb2f8f424…`](https://basescan.org/tx/0xb2f8f42403bb714541a36a119897d99603366afa0a29d96555ba97ad426a8c79) (block 56562192). Registration script: [`scripts/mpc-register.cjs`](scripts/mpc-register.cjs).
+- **Settlement PROVEN live:** PayPal license #17 settled on Base — tx [`0x4c63981c…`](https://basescan.org/tx/0x4c63981c75e071a0bc9c0bc0765dbd750fb28ea37c08f4df775299acc6d33f22) (block 56562938, status 1, `LicenseRecorded` + `ScholarCredited` events verified). The full path — authorize → attestation → capture → MPC sign → Base record — has run end to end. The first live crypto (1Click) purchase is the remaining proof; the system is ready for it.
+- **Chain picker (live):** all four chains return live quotes (Base USDC, NEAR, Solana via `nep141:sol.omft.near`, Arbitrum via `nep141:arb.omft.near`). No live deposit has been sent on any chain yet — quotes only, \$0 moved, until the first live purchase.
+- **Known follow-ups:** Gate 2 currently verifies against the stored quote; a fresh-1Click re-check before signing is planned. `registerWork` is permissionless; restricting it needs a contract redeploy and is deferred.
 
 ---
 
-## Locked Security Story
+## Locked security story
 
 1. **NO EVM Private Key Anywhere**:
    - No EVM private key exists in this repository, in `.env`, on the server, or in memory.
@@ -70,11 +95,11 @@ sequenceDiagram
    - `LicenseRegistry.sol` restricts `recordLicense(...)` with `if (msg.sender != relayer) revert NotRelayer()`.
    - The constructor immutable `relayer` is strictly the deterministic EVM address derived from the NEAR MPC root key via path `ethereum-1`.
 3. **Cryptographic Replay Protection**:
-   - Every 1Click payment generates a unique `proofHash = keccak256(depositTxHash)`.
+   - Every payment generates a unique proof hash: crypto payments use `proofHash = keccak256(depositTxHash)`; PayPal payments use `proofHash = sha256('paypal:' + orderId)`.
    - `LicenseRegistry.sol` maintains `mapping(bytes32 => bool) public settled`. A payment can never be reused or replayed to mint duplicate licenses.
-4. **Pre-Signing 4-Gate Verification**:
-   Before requesting any MPC signature, the watcher agent cryptographically verifies:
-   - 1Click status is `SUCCESS`.
+4. **Pre-Signing Verification Gates**:
+   Before requesting any MPC signature, the watcher agent verifies:
+   - 1Click status is `SUCCESS` (or the PayPal capture is confirmed).
    - `amountOut` and `destination` match the scholar address and quote exactly.
    - `work_id`, `tier`, and `buyer_address` match the licensed entity.
    - `isSettled` on Base RPC is `false`.
@@ -83,25 +108,27 @@ sequenceDiagram
 6. **Proceeds Separation**:
    - 1Click USDC settles directly to the author/scholar address set per work.
    - The MPC derived relayer holds only gas ETH for Base execution; it never custodies author proceeds.
+7. **Signed Uploads**:
+   - Only the wallet that controls a scholar address can attach a work to it: uploads require a valid EIP-191 signature over a single-use challenge (10-minute expiry, replay rejected).
 
 ---
 
-## Contract Deployments & Addresses
+## Contract deployments & addresses
 
 | Network | Contract / Asset | Address | Details |
 | :--- | :--- | :--- | :--- |
-| **Base Mainnet (8453)** | `LicenseRegistry.sol` | [`0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00`](https://basescan.org/address/0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00) | Deployed Sat Nov 7, 2026. Deploy tx [`0xf2769b808992a69969a5909e1b5359cfc375a6400092e546845b2639695d4065`](https://basescan.org/tx/0xf2769b808992a69969a5909e1b5359cfc375a6400092e546845b2639695d4065). Relayer (immutable): `0x4D538abf011e0885a6f87667Db466837B10b49f9` (nonce `0`). [LicenseRegistry.sol](src/LicenseRegistry.sol) |
+| **Base Mainnet (8453)** | `LicenseRegistry.sol` | [`0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00`](https://basescan.org/address/0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00) | Deployed Sat Nov 7, 2026. Deploy tx [`0xf2769b808992a69969a5909e1b5359cfc375a6400092e546845b2639695d4065`](https://basescan.org/tx/0xf2769b808992a69969a5909e1b5359cfc375a6400092e546845b2639695d4065). Relayer (immutable): `0x4D538abf011e0885a6f87667Db466837B10b49f9`. All 3 works registered + license #17 settled Nov 12 (see Live Status). [LicenseRegistry.sol](src/LicenseRegistry.sol) |
 | **NEAR Mainnet** | MPC Signer Contract | `v1.signer` | Root key: `3tFRbM...` |
 | **Derivation Path** | MPC Path | `ethereum-1` | Relayer EVM Address `0x4D538abf011e0885a6f87667Db466837B10b49f9` (`stanza_glenride.near`) |
 | **Base USDC** | Settlement Asset | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` | Direct scholar proceeds (6 decimals) |
 
 ---
 
-## "Do X → See Y" Cold Verification Steps
+## "Do X → See Y" cold verification steps
 
 Run these commands directly in your shell from a fresh clone (`main` branch) to verify every subsystem.
 
-### Step 1: Verify Smart Contracts & Replay Protection (Foundry)
+### Step 1: Verify smart contracts & replay protection (Foundry)
 
 ```bash
 export PATH="$HOME/.foundry/bin:$PATH"
@@ -120,7 +147,7 @@ Suite result: ok. 4 passed; 0 failed; 0 skipped
 
 ---
 
-### Step 2: Verify NEAR Chain Signatures MPC Derivation (Path `ethereum-1`) & Dry-Run Settlement
+### Step 2: Verify NEAR Chain Signatures MPC derivation (path `ethereum-1`) & dry-run settlement
 
 Derive the deterministic EVM address for any NEAR account and dry-run the Base EIP-1559 settlement builder without spending gas:
 
@@ -140,7 +167,7 @@ node scripts/mpc-settle.cjs \
 
 ---
 
-### Step 3: Dry-Run Base Mainnet Deployment Script Against Fork
+### Step 3: Dry-run Base mainnet deployment script against fork
 
 Simulate deployment of `LicenseRegistry.sol` to Base (chain 8453) using the derived MPC relayer address:
 
@@ -152,46 +179,26 @@ RELAYER_ADDRESS=0xEF4Ea05e5c11057DeCC8E1bd6F5369f2acD91fA5 \
 
 ---
 
-### Step 4: Verify 1Click Service, Agent Jobs & Verification Gates (PHPUnit)
+### Step 4: Verify 1Click service, agent jobs, verification gates, uploads & notifications (PHPUnit)
 
-Run the full Laravel test suite covering OneClick quote generation, watcher jobs, pre-flight security gates, and checkout rendering:
+Run the full Laravel test suite covering OneClick quotes, the chain picker, watcher jobs, pre-signing gates, PayPal checkout, signed uploads, and notifications:
 
 ```bash
 php artisan test
 ```
 
-**Expected output:**
+**Expected output (Nov 12, 2026):**
 ```
-   PASS  Tests\Unit\ExampleTest
-  ✓ that true is true
-
-   PASS  Tests\Feature\CheckoutTest
-  ✓ checkout page renders successfully
-  ✓ checkout route alias renders successfully
-  ✓ api quote endpoint creates license and returns deposit info
-  ✓ lookup page renders successfully
-  ✓ api lookup resolves test tx hash
-
-   PASS  Tests\Feature\OneClickAgentTest
-  ✓ oneclick service generates quote and status
-  ✓ end to end job chain runs cleanly
-  ✓ settle license fails if status not success
-  ✓ settle license fails if amount mismatch
-  ✓ settle license fails if destination mismatch
-
-   PASS  Tests\Feature\ScholarTest
-  ✓ scholar page renders with works and licenses
-  ✓ scholar page case insensitive lookup
-  ✓ scholar page empty state for unknown address
-
-  Tests:    14 passed (139 assertions)
+Tests:    81 passed (365 assertions)
 ```
+
+Suite breakdown — Unit (15): `EthereumSignatureServiceTest` (6), `MpcSettlementServiceTest` (3), `WorkTest` (5), `ExampleTest` (1). Feature (66): `ChainPickerTest` (19), `CheckoutTest` (5), `OneClickAgentTest` (5), `PayPalCheckoutTest` (11), `ScholarNotificationTest` (8), `ScholarTest` (3), `WorkUploadTest` (15).
 
 ---
 
-### Step 5: How to Run the Demo (`main` Branch)
+### Step 5: How to run the demo (`main` branch)
 
-#### Required Environment Variables (`.env`)
+#### Required environment variables (`.env`)
 Copy `.env.example` to `.env`. If `ONECLICK_JWT` or `LICENSE_REGISTRY_ADDRESS` is omitted, the app runs in deterministic stub mode so tests and local previews work without credentials. For live mode:
 
 ```dotenv
@@ -212,13 +219,29 @@ NEAR_PRIVATE_KEY=<your-near-ed25519-key>
 BASE_CHAIN_ID=8453
 BASE_RPC_URL=https://mainnet.base.org
 LICENSE_REGISTRY_ADDRESS=0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00
+
+# PayPal (Sandbox) + attestation review (optional; without keys PayPal 503s honestly)
+PAYPAL_MODE=sandbox
+PAYPAL_CLIENT_ID=<sandbox client id>
+PAYPAL_CLIENT_SECRET=<sandbox client secret>
+AI_API_KEY=<openai-compatible key, optional>
+
+# Sale notifications (optional; without RESEND_KEY notifications skip honestly)
+MAIL_MAILER=resend
+MAIL_FROM_ADDRESS=stanza@dvaughnhouse.com
+MAIL_FROM_NAME=STANZA
+RESEND_KEY=<resend sending-access key>
+STANZA_NOTIFY_EMAIL=<fallback notification address>
+
+# Containers only: absolute path to the host node binary used by scripts/mpc-settle.cjs
+NODE_BINARY=<path to node, optional>
 ```
 
-#### Start the Demo Application
+#### Start the demo application
 
 ```bash
-# (Fresh install only) Run migrations & seed the 3 manuscripts by D'Vaughn House
-# Note: Do not re-seed on the live demo instance where the Read tier is set to $1.00.
+# (Fresh install only) Run migrations & seed the 3 catalog works
+# Note: Do not re-seed on the live instance where the Read tier is set to $1.00.
 php artisan migrate
 php artisan db:seed
 
@@ -228,58 +251,80 @@ npm run build
 # Terminal 1: Start HTTP server
 php artisan serve --host=127.0.0.1 --port=8005
 
-# Terminal 2: Start autonomous quote & settlement watcher worker
+# Terminal 2: Start the autonomous quote & settlement watcher worker.
+# Exactly ONE worker, with --tries=0: the settlement watcher release-polls
+# itself and dies under a bounded --tries. See docs/queue-worker.md.
 php artisan queue:work --tries=0
 ```
 
-#### Routes & Demo Script
+The live deployment runs the same stack on port 8003 behind a Cloudflare Tunnel at https://crosschain.spinwave.tech, with the queue worker as a supervised service.
+
+#### Routes & demo script
 - **Checkout (`Connect Wallet` → `Buy` → `Pay`):** `http://127.0.0.1:8005/` (or `http://127.0.0.1:8005/checkout`)
 - **License Lookup:** `http://127.0.0.1:8005/lookup`
-- **Scholar Portfolio:** `http://127.0.0.1:8005/scholar/0x2c432c901d5844431b027dd652fbfd3cc3dd6094` (D'Vaughn House — all 3 manuscripts and their licenses)
+- **Work Page:** `http://127.0.0.1:8005/work/{slug}` (tier terms + content fingerprint)
+- **Scholar Portfolio:** `http://127.0.0.1:8005/scholar/0x2c432c901d5844431b027dd652fbfd3cc3dd6094` (all 3 catalog works and their licenses)
+- **Upload Challenge (API):** `GET http://127.0.0.1:8005/api/upload-challenge?address=<scholar wallet>`
 - **Demo Plan & Video Script:** [`docs/monday-demo-plan.md`](docs/monday-demo-plan.md)
 - **MPC Settlement Script:** [`scripts/mpc-settle.cjs`](scripts/mpc-settle.cjs)
+- **Work Registration Script:** [`scripts/mpc-register.cjs`](scripts/mpc-register.cjs)
 
 ---
 
-## Repository Structure
+## Repository structure
 
 ```
 ├── app/
 │   ├── Http/Controllers/
 │   │   ├── CheckoutController.php               # Guest checkout & license lookup
-│   │   └── ScholarController.php                # Read-only scholar portfolio & ledger
+│   │   ├── PayPalCheckoutController.php         # PayPal order / return / cancel
+│   │   ├── ScholarController.php                # Read-only scholar portfolio & ledger
+│   │   └── WorkController.php                   # Upload challenge, work upload & work page
 │   ├── Jobs/
 │   │   ├── RequestLicenseQuote.php              # 1Click quote agent job
 │   │   ├── WatchSettlement.php                  # Inbound payment watcher
-│   │   └── SettleLicense.php                    # 4-gate verification & MPC relay
+│   │   ├── SettleLicense.php                    # Verification gates & MPC relay (crypto)
+│   │   └── SettlePayPalLicense.php              # Attestation → capture → MPC relay (PayPal)
 │   ├── Models/
-│   │   ├── Work.php                             # Scholarly manuscript model
+│   │   ├── Work.php                             # Catalog work (tiers, terms, content hash)
 │   │   └── License.php                          # Cross-chain license record
 │   └── Services/
+│       ├── AttestationAgent.php                 # Hold/release review (deterministic + LLM)
+│       ├── EthereumSignatureService.php         # EIP-191 signature recovery (pure PHP)
+│       ├── MpcSettlementService.php             # NEAR MPC + Base RPC relay
 │       ├── OneClickService.php                  # NEAR Intents 1Click integration
-│       └── MpcSettlementService.php             # NEAR MPC + Base RPC relay
+│       ├── PayPalService.php                    # PayPal Orders API v2
+│       └── ScholarNotificationService.php       # Resend sale notifications (idempotent)
 ├── docs/
 │   ├── antigravity/
 │   │   ├── README.md                            # Hackathon work orders
 │   │   └── SCOPE.md                             # Frozen hackathon scope
-│   ├── manuscripts/                             # Full text of the 3 scholarly works
-│   └── monday-demo-plan.md                      # Demo walkthrough & video script
+│   ├── manuscripts/                             # Full text of the catalog works
+│   ├── monday-demo-plan.md                      # Demo walkthrough & video script
+│   ├── paypal-submission.md                     # PayPal hackathon submission narrative
+│   └── queue-worker.md                          # Single-worker queue operations
 ├── resources/js/
 │   ├── lib/
+│   │   ├── utils.ts
 │   │   └── wallet.ts                            # Injected wallet helper (viem + window.ethereum)
 │   └── pages/
-│       ├── checkout.tsx                         # Seamless 1-tap checkout & quote tracker
+│       ├── checkout.tsx                         # Chain picker, 1-tap/deposit checkout & quote tracker
 │       ├── lookup.tsx                           # On-chain proof & BaseScan lookup
-│       └── scholar.tsx                          # Scholar attribution & license ledger
+│       ├── scholar.tsx                          # Scholar attribution & license ledger
+│       └── work.tsx                             # Work page with tier terms & content fingerprint
 ├── script/
 │   └── DeployLicenseRegistry.s.sol              # Foundry Base deploy script
 ├── scripts/
 │   ├── derive-mpc-address.py                    # Standalone NEAR MPC derive script
+│   ├── mpc-register.cjs                         # MPC-signed registerWork calls
 │   └── mpc-settle.cjs                           # Live NEAR MPC sign + Base EIP-1559 relay
 ├── src/
 │   └── LicenseRegistry.sol                      # Immutable Base settlement registry
-└── test/
-    └── LicenseRegistry.t.sol                    # 4/4 passing Foundry tests
+├── test/
+│   └── LicenseRegistry.t.sol                    # 4/4 passing Foundry tests
+└── tests/
+    ├── Feature/                                 # ChainPicker, Checkout, OneClick, PayPal, Notifications, Scholar, Upload
+    └── Unit/                                    # Signature recovery, MPC parsing, Work model
 ```
 
 ---
@@ -289,23 +334,24 @@ php artisan queue:work --tries=0
 The same licensing agent, with a second payment rail: **PayPal (Sandbox)**.
 Submitted to the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com)
 (deadline **Nov 12, 2026, 12:00 PM PT / 3:00 PM ET**). The NEAR submission
-(Nov 14) is unaffected — this slice lives on the `paypal-slice` branch and
-shares the LicenseRegistry contract, the catalog, and the MPC settlement path.
+(Nov 14) is unaffected. The slice was built on the `paypal-slice` branch and
+**merged to `main` Nov 12, 2026** — it shares the LicenseRegistry contract,
+the catalog, and the MPC settlement path.
 
 ### How PayPal is central (not a bolt-on button)
 
 1. The buyer picks a manuscript + tier on the checkout page and chooses
    **PayPal (Sandbox)**. The app creates a PayPal order with intent
-   `AUTHORIZE` for the exact tier price (read $10 / citation $25 /
-   commercial $150) and sends the buyer to PayPal to approve it.
+   `AUTHORIZE` for the exact tier price and sends the buyer to PayPal to approve it.
 2. On return, the app authorizes the order — **PayPal now HOLDS the funds.
-   Nothing is captured yet.**
+   Nothing is captured yet.** Email identifies the buyer; a wallet address
+   is optional.
 3. The licensing agent runs its **attestation review** (see below). Only on
    a release does it capture the authorization (`final_capture`). On a hold
    it **voids** the authorization, so the buyer is never charged.
-4. After capture, the same 4-gate verification + NEAR Chain Signatures MPC
+4. After capture, the same verification + NEAR Chain Signatures MPC
    settlement records the license on Base (`recordLicense`), exactly as the
-   1Click flow does. The PayPal proof hash is `keccak256('paypal:' +
+   1Click flow does. The PayPal proof hash is `sha256('paypal:' +
    orderId)`, so replay protection works identically.
 
 ### How AI is used
@@ -313,7 +359,7 @@ shares the LicenseRegistry contract, the catalog, and the MPC settlement path.
 The **attestation agent** (`app/Services/AttestationAgent.php`) decides
 whether a held payment may be released. Deterministic gates always run and
 are authoritative: work active, tier price matches the catalog, authorized
-amount/currency match the tier price exactly, buyer address valid, no replay
+amount/currency match the tier price exactly, buyer email valid, no replay
 for this order. When an OpenAI-compatible key is configured (`AI_API_KEY`),
 a model review runs on top: it reads the manuscript record, the license
 terms, and the payment evidence, and returns a JSON release/hold verdict
@@ -335,6 +381,9 @@ pretends a model review happened.
   `paypal_authorization_id`, `paypal_capture_id`, `attestation_payload`.
 - `LICENSE` file added (MIT — the README already claimed MIT, the file was
   missing). `config/services.php` + `.env.example`: `PAYPAL_*` and `AI_*`.
+- Nov 12: slice merged to `main`; email-only buyer identity (wallet address
+  optional); `SettlePayPalLicense` bounded (`$tries=5`, `$backoff=60`) with
+  a `failed()` hook; signing-state re-dispatch reaches settlement.
 
 ### Sandbox setup (for judges and for D'Vaughn)
 
@@ -344,11 +393,11 @@ pretends a model review happened.
 #    Copy the sandbox Client ID + Secret into .env:
 PAYPAL_MODE=sandbox
 PAYPAL_CLIENT_ID=<sandbox client id>
-PAYPAL_CLIENT_SECRET=<sandbox secret>
+PAYPAL_CLIENT_SECRET=<sandbox client secret>
 # 2. Same dashboard > Sandbox > Accounts: create a Personal (buyer) test
 #    account, or use the auto-created one. Log in to it at checkout time.
 # 3. Optional, for the LLM attestation review: an OpenAI-compatible key.
-AI_API_KEY=<key>
+AI_API_KEY=<openai-compatible key>
 # 4. Run the app (see Step 5 above), pick a manuscript, choose
 #    "PayPal (Sandbox)", approve in the sandbox, and watch the hold →
 #    attestation → capture → on-chain record flow.
@@ -358,20 +407,18 @@ Without `PAYPAL_CLIENT_ID`/`PAYPAL_CLIENT_SECRET`, `POST /api/paypal/order`
 returns `503 paypal_not_configured` — the checkout says "not online yet"
 instead of faking a success.
 
-### Honest status (Nov 9, 2026)
+### Honest status (Nov 12, 2026)
 
 - PayPal Sandbox flow is implemented and covered by feature tests
   (`tests/Feature/PayPalCheckoutTest.php`): order creation, return →
-  authorize → capture → settle (stub MPC in tests), amount-mismatch void,
-  LLM-hold void, duplicate-return idempotency.
-- The on-chain leg uses the same MPC settlement as the NEAR flow. The NEAR
-  function-call key for `stanza_glenride.near` is created and verified
-  on-chain (Nov 9), and the live settle path is wired — but it has not run
-  a real settlement yet (relayer nonce still 0 as of Nov 10). Until it
-  does, a captured PayPal payment parks as `captured` with a
-  plain-language note, and re-dispatching `SettlePayPalLicense` finishes
-  the on-chain leg — it never captures twice. No live paid purchase has
-  been run for this slice; sandbox only.
+  authorize → capture → settle, amount-mismatch void, LLM-hold void,
+  duplicate-return idempotency, email-only orders, signing re-dispatch.
+- **End to end, proven live:** PayPal license #17 ran authorize →
+  attestation release → capture → MPC sign → Base record on Nov 12, 2026.
+  Settlement tx [`0x4c63981c…`](https://basescan.org/tx/0x4c63981c75e071a0bc9c0bc0765dbd750fb28ea37c08f4df775299acc6d33f22)
+  (block 56562938, `LicenseRecorded` verified). The PayPal leg runs in
+  Sandbox; the on-chain leg records on Base mainnet. No real-money PayPal
+  purchase has been run.
 
 ## Submission & License
 
