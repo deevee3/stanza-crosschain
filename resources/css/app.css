@@ -17,12 +17,13 @@
   below therefore uses var(--token) as a whole color, never
   hsl(var(--token)).
 
-  Light :root carries the Carbon Arc light tokens verbatim. .dark carries
-  the warmed dark translation: neutral surfaces warmed (hue ~30-45,
-  saturation 3-6%) so they read warm, never neutral-cold; cards a step
-  lighter than the background; paper-toned warm near-white text; the
-  vivid orange accent kept recognizable at 55% lightness. Never pure
-  black anywhere: the darkest surface is 8% lightness.
+  Light :root carries the Carbon Arc language on parchment-warmed
+  surfaces: tan desk, cream paper cards, warm ink — never stark white.
+  .dark carries the warmed dark translation: neutral surfaces warmed
+  (hue ~30-45, saturation 3-6%) so they read warm, never neutral-cold;
+  cards a step lighter than the background; paper-toned warm near-white
+  text; the vivid orange accent kept recognizable at 55% lightness.
+  Never pure black anywhere: the darkest surface is 8% lightness.
 */
 
 /* Grotesque + dot-matrix display faces, self-hosted, latin subset
@@ -157,25 +158,25 @@
 :root {
     color-scheme: light;
 
-    /* Brand — monochrome + one accent */
-    --primary: hsl(0, 0%, 7%);
-    --primary-foreground: hsl(0, 0%, 100%);
+    /* Brand — warm ink + one accent */
+    --primary: hsl(25, 22%, 9%);
+    --primary-foreground: hsl(46, 50%, 96%);
     --accent: hsl(22, 100%, 50%);
     --accent-foreground: hsl(0, 0%, 7%);
     --accent-deep: hsl(22, 100%, 45%);
     --accent-soft: hsl(22, 100%, 95%);
-    --secondary: hsl(0, 0%, 92%);
-    --secondary-foreground: hsl(0, 0%, 7%);
+    --secondary: hsl(42, 25%, 86%);
+    --secondary-foreground: hsl(25, 22%, 9%);
 
-    /* Surfaces */
-    --background: hsl(60, 4%, 95%);
-    --foreground: hsl(0, 0%, 7%);
-    --card: hsl(0, 0%, 100%);
-    --card-foreground: hsl(0, 0%, 7%);
-    --popover: hsl(0, 0%, 100%);
-    --popover-foreground: hsl(0, 0%, 7%);
-    --muted: hsl(0, 0%, 92%);
-    --muted-foreground: hsl(0, 0%, 42%);
+    /* Surfaces — parchment: tan desk, cream paper cards */
+    --background: hsl(43, 30%, 90%);
+    --foreground: hsl(25, 22%, 9%);
+    --card: hsl(46, 50%, 96%);
+    --card-foreground: hsl(25, 22%, 9%);
+    --popover: hsl(46, 50%, 96%);
+    --popover-foreground: hsl(25, 22%, 9%);
+    --muted: hsl(42, 22%, 88%);
+    --muted-foreground: hsl(35, 12%, 42%);
 
     /* Functional */
     --success: hsl(96, 52%, 45%);
@@ -185,29 +186,29 @@
     --warning-foreground: hsl(30, 60%, 12%);
     --destructive: hsl(4, 68%, 48%);
     --destructive-foreground: hsl(0, 0%, 100%);
-    --info: hsl(0, 0%, 7%);
-    --info-foreground: hsl(0, 0%, 100%);
+    --info: hsl(25, 22%, 9%);
+    --info-foreground: hsl(46, 50%, 96%);
 
     /* Lines + focus */
-    --border: hsl(0, 0%, 88%);
-    --input: hsl(0, 0%, 80%);
+    --border: hsl(41, 28%, 79%);
+    --input: hsl(40, 20%, 72%);
     --ring: hsl(22, 100%, 50%);
 
     /* Charts (categorical) */
-    --chart-1: hsl(0, 0%, 7%);
+    --chart-1: hsl(25, 22%, 9%);
     --chart-2: hsl(22, 100%, 50%);
     --chart-3: hsl(96, 52%, 45%);
-    --chart-4: hsl(0, 0%, 55%);
+    --chart-4: hsl(35, 10%, 55%);
     --chart-5: hsl(42, 76%, 45%);
 
     --radius: 1.5rem;
-    --sidebar-background: hsl(0, 0%, 100%);
-    --sidebar-foreground: hsl(0, 0%, 7%);
-    --sidebar-primary: hsl(0, 0%, 7%);
-    --sidebar-primary-foreground: hsl(0, 0%, 100%);
-    --sidebar-accent: hsl(0, 0%, 92%);
-    --sidebar-accent-foreground: hsl(0, 0%, 7%);
-    --sidebar-border: hsl(0, 0%, 88%);
+    --sidebar-background: hsl(46, 50%, 96%);
+    --sidebar-foreground: hsl(25, 22%, 9%);
+    --sidebar-primary: hsl(25, 22%, 9%);
+    --sidebar-primary-foreground: hsl(46, 50%, 96%);
+    --sidebar-accent: hsl(42, 25%, 86%);
+    --sidebar-accent-foreground: hsl(25, 22%, 9%);
+    --sidebar-border: hsl(41, 28%, 79%);
     --sidebar-ring: hsl(22, 100%, 50%);
 }
 
