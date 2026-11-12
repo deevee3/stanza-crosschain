@@ -163,11 +163,27 @@ class MpcSettlementService
             throw new Exception("Live MPC settlement failed: {$error}");
         }
 
-        $output = json_decode(trim($process->getOutput()), true);
+        $output = self::parseSettlementOutput($process->getOutput());
         if (!$output || empty($output['txHash'])) {
             throw new Exception("Live MPC settlement returned invalid output: " . $process->getOutput());
         }
 
         return $output;
+    }
+
+    /**
+     * Parse the settle script's stdout. near-api-js prints transaction
+     * receipts and signer logs to stdout before the script's JSON result,
+     * so the JSON object is extracted from the END of the output instead
+     * of decoding the whole stream. Returns null when no valid JSON
+     * object is present.
+     */
+    public static function parseSettlementOutput(string $rawOutput): ?array
+    {
+        $jsonPos = strrpos($rawOutput, '{"status"');
+        $candidate = $jsonPos !== false ? substr($rawOutput, $jsonPos) : trim($rawOutput);
+        $decoded = json_decode(trim($candidate), true);
+
+        return is_array($decoded) ? $decoded : null;
     }
 }
