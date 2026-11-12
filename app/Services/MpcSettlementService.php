@@ -30,7 +30,7 @@ class MpcSettlementService
 
     /**
      * Check if a proofHash is already settled on-chain on LicenseRegistry.
-     * Function selector for settled(bytes32): keccak256("settled(bytes32)")[0..4] = 0x27670732
+     * Function selector for settled(bytes32): keccak256("settled(bytes32)")[0..4] = 0xd945af1d
      */
     public function isSettledOnChain(string $proofHash): bool
     {
@@ -38,8 +38,8 @@ class MpcSettlementService
             return false;
         }
 
-        // settled(bytes32) selector is keccak256("settled(bytes32)")[:4] -> 0x27670732
-        $selector = '0x27670732';
+        // settled(bytes32) selector is keccak256("settled(bytes32)")[:4] -> 0xd945af1d
+        $selector = '0xd945af1d';
         $cleanHash = ltrim(str_replace('0x', '', $proofHash), '');
         $data = $selector . str_pad($cleanHash, 64, '0', STR_PAD_LEFT);
 
