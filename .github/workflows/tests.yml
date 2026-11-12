@@ -40,6 +40,9 @@ jobs:
       - name: Create SQLite Database
         run: touch database/database.sqlite
 
+      - name: Prepare Laravel directories
+        run: mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views
+
       - name: Install Dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
