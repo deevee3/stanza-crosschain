@@ -15,11 +15,16 @@ class License extends Model
         'buyer_address',
         'tier',
         'price_usd',
+        'payment_method',
         'deposit_asset',
         'deposit_chain',
         'deposit_address',
         'quote_id',
         'quote_payload',
+        'paypal_order_id',
+        'paypal_authorization_id',
+        'paypal_capture_id',
+        'attestation_payload',
         'deposit_tx_hash',
         'proof_hash',
         'settlement_tx_hash',
@@ -31,6 +36,7 @@ class License extends Model
     protected $casts = [
         'price_usd' => 'decimal:2',
         'quote_payload' => 'array',
+        'attestation_payload' => 'array',
         'settled_at' => 'datetime',
     ];
 

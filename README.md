@@ -284,7 +284,97 @@ php artisan queue:work --tries=0
 
 ---
 
+## PayPal AI Hackathon slice (Nov 2026)
+
+The same licensing agent, with a second payment rail: **PayPal (Sandbox)**.
+Submitted to the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com)
+(deadline **Nov 12, 2026, 12:00 PM PT / 3:00 PM ET**). The NEAR submission
+(Nov 14) is unaffected — this slice lives on the `paypal-slice` branch and
+shares the LicenseRegistry contract, the catalog, and the MPC settlement path.
+
+### How PayPal is central (not a bolt-on button)
+
+1. The buyer picks a manuscript + tier on the checkout page and chooses
+   **PayPal (Sandbox)**. The app creates a PayPal order with intent
+   `AUTHORIZE` for the exact tier price (read $10 / citation $25 /
+   commercial $150) and sends the buyer to PayPal to approve it.
+2. On return, the app authorizes the order — **PayPal now HOLDS the funds.
+   Nothing is captured yet.**
+3. The licensing agent runs its **attestation review** (see below). Only on
+   a release does it capture the authorization (`final_capture`). On a hold
+   it **voids** the authorization, so the buyer is never charged.
+4. After capture, the same 4-gate verification + NEAR Chain Signatures MPC
+   settlement records the license on Base (`recordLicense`), exactly as the
+   1Click flow does. The PayPal proof hash is `keccak256('paypal:' +
+   orderId)`, so replay protection works identically.
+
+### How AI is used
+
+The **attestation agent** (`app/Services/AttestationAgent.php`) decides
+whether a held payment may be released. Deterministic gates always run and
+are authoritative: work active, tier price matches the catalog, authorized
+amount/currency match the tier price exactly, buyer address valid, no replay
+for this order. When an OpenAI-compatible key is configured (`AI_API_KEY`),
+a model review runs on top: it reads the manuscript record, the license
+terms, and the payment evidence, and returns a JSON release/hold verdict
+with a rationale, which is stored on the license (`attestation_payload`)
+and shown on the checkout status card. Without a key the agent runs on
+deterministic gates only and says so in the stored verdict — it never
+pretends a model review happened.
+
+### What changed since Oct 1, 2026 (PayPal rules: existing projects must show meaningful updates)
+
+- New PayPal Sandbox checkout: `PayPalService` (Orders API v2), `PayPalCheckoutController`
+  (`POST /api/paypal/order`, `GET /paypal/return`, `GET /paypal/cancel`),
+  `SettlePayPalLicense` job (verify → attestation → capture → MPC record).
+- New AI attestation agent (`AttestationAgent`) with deterministic gates +
+  LLM review; verdict stored per license and shown in the UI.
+- Checkout UI: payment-method toggle (crypto via 1Click / PayPal Sandbox),
+  PayPal status + attestation verdict on the settlement card.
+- License model + migration: `payment_method`, `paypal_order_id`,
+  `paypal_authorization_id`, `paypal_capture_id`, `attestation_payload`.
+- `LICENSE` file added (MIT — the README already claimed MIT, the file was
+  missing). `config/services.php` + `.env.example`: `PAYPAL_*` and `AI_*`.
+
+### Sandbox setup (for judges and for D'Vaughn)
+
+```bash
+# 1. PayPal Developer: https://developer.paypal.com/dashboard
+#    My Apps & Credentials > Sandbox > Create App (name it e.g. "stanza-paypal").
+#    Copy the sandbox Client ID + Secret into .env:
+PAYPAL_MODE=sandbox
+PAYPAL_CLIENT_ID=<sandbox client id>
+PAYPAL_CLIENT_SECRET=<sandbox secret>
+# 2. Same dashboard > Sandbox > Accounts: create a Personal (buyer) test
+#    account, or use the auto-created one. Log in to it at checkout time.
+# 3. Optional, for the LLM attestation review: an OpenAI-compatible key.
+AI_API_KEY=<key>
+# 4. Run the app (see Step 5 above), pick a manuscript, choose
+#    "PayPal (Sandbox)", approve in the sandbox, and watch the hold →
+#    attestation → capture → on-chain record flow.
+```
+
+Without `PAYPAL_CLIENT_ID`/`PAYPAL_CLIENT_SECRET`, `POST /api/paypal/order`
+returns `503 paypal_not_configured` — the checkout says "not online yet"
+instead of faking a success.
+
+### Honest status (Nov 9, 2026)
+
+- PayPal Sandbox flow is implemented and covered by feature tests
+  (`tests/Feature/PayPalCheckoutTest.php`): order creation, return →
+  authorize → capture → settle (stub MPC in tests), amount-mismatch void,
+  LLM-hold void, duplicate-return idempotency.
+- The on-chain leg uses the same MPC settlement as the NEAR flow. The NEAR
+  function-call key for `stanza_glenride.near` is created and verified
+  on-chain (Nov 9), and the live settle path is wired — but it has not run
+  a real settlement yet (relayer nonce still 0 as of Nov 10). Until it
+  does, a captured PayPal payment parks as `captured` with a
+  plain-language note, and re-dispatching `SettlePayPalLicense` finishes
+  the on-chain leg — it never captures twice. No live paid purchase has
+  been run for this slice; sandbox only.
+
 ## Submission & License
 
-- **Submission Deadline:** November 14, 2026, 6:59 PM EST (One-shot, uneditable).
-- **License:** MIT
+- **NEAR Submission Deadline:** November 14, 2026, 6:59 PM EST (One-shot, uneditable).
+- **PayPal Submission Deadline:** November 12, 2026, 12:00 PM PT / 3:00 PM ET (Devpost).
+- **License:** MIT (see `LICENSE`)

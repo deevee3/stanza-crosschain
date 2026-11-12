@@ -28,6 +28,19 @@ return [
         'key' => env('RESEND_KEY'),
     ],
 
+    'paypal' => [
+        'mode' => env('PAYPAL_MODE', 'sandbox'),
+        'client_id' => env('PAYPAL_CLIENT_ID'),
+        'client_secret' => env('PAYPAL_CLIENT_SECRET'),
+        'base_url' => env('PAYPAL_API_BASE'),
+    ],
+
+    'ai' => [
+        'api_key' => env('AI_API_KEY'),
+        'base_url' => env('AI_API_BASE_URL', 'https://api.openai.com/v1'),
+        'model' => env('AI_MODEL', 'gpt-4o-mini'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

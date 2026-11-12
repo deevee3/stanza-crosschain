@@ -53,11 +53,20 @@ interface License {
     buyer_address: string;
     tier: string;
     price_usd: number;
+    payment_method?: string;
     deposit_asset: string;
     deposit_chain: string;
     deposit_address: string | null;
     quote_id: string | null;
     quote_payload?: QuotePayload | null;
+    paypal_order_id?: string | null;
+    paypal_authorization_id?: string | null;
+    paypal_capture_id?: string | null;
+    attestation_payload?: {
+        decision?: string;
+        mode?: string;
+        rationale?: string;
+    } | null;
     deposit_tx_hash: string | null;
     proof_hash: string | null;
     settlement_tx_hash: string | null;
@@ -69,6 +78,7 @@ interface License {
 
 interface Props {
     works: Work[];
+    returnLicenseId?: number;
 }
 
 const DEPOSIT_CHAINS = [
@@ -78,13 +88,14 @@ const DEPOSIT_CHAINS = [
     { id: 'arbitrum', name: 'Arbitrum', asset: 'arbitrum:native', symbol: 'ETH' },
 ];
 
-export default function Checkout({ works }: Props) {
+export default function Checkout({ works, returnLicenseId }: Props) {
     const [selectedWorkId, setSelectedWorkId] = useState<number>(works[0]?.id || 1);
     const [selectedTier, setSelectedTier] = useState<string>('read');
     const [selectedChain, setSelectedChain] = useState(DEPOSIT_CHAINS[0]);
     const [walletAddress, setWalletAddress] = useState<string | null>(null);
     const [walletChainId, setWalletChainId] = useState<number | null>(null);
     const [connectingWallet, setConnectingWallet] = useState<boolean>(false);
+    const [paymentMethod, setPaymentMethod] = useState<'oneclick' | 'paypal'>('oneclick');
     const [buyerAddress, setBuyerAddress] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
     const [paying, setPaying] = useState<boolean>(false);
@@ -94,6 +105,18 @@ export default function Checkout({ works }: Props) {
     const [copied, setCopied] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [errorCount, setErrorCount] = useState<number>(0);
+
+    // Coming back from PayPal approval: load the license the return
+    // route authorized (or failed) so the status card shows what happened.
+    useEffect(() => {
+        if (!returnLicenseId) return;
+        fetch(`/api/licenses/${returnLicenseId}`, { headers: { Accept: 'application/json' } })
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+                if (data?.license) setCurrentLicense(data.license);
+            })
+            .catch(() => undefined);
+    }, [returnLicenseId]);
 
     const activeWork = works.find((w) => w.id === selectedWorkId) || works[0];
     const currentPrice = Number(activeWork?.tiers[selectedTier] ?? 1.0);
@@ -328,6 +351,48 @@ export default function Checkout({ works }: Props) {
         }
     };
 
+    const handlePayPalCheckout = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+
+        try {
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content;
+
+            const res = await fetch('/api/paypal/order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken || '',
+                    Accept: 'application/json',
+                },
+                body: JSON.stringify({
+                    work_id: activeWork.id,
+                    tier: selectedTier,
+                    buyer_address: buyerAddress,
+                }),
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(
+                    data.error === 'paypal_not_configured'
+                        ? 'PayPal checkout is not online yet (sandbox credentials are not configured).'
+                        : data.message || 'Failed to create the PayPal order.',
+                );
+            }
+
+            // PayPal approval happens on PayPal (sandbox). The buyer comes
+            // back to /paypal/return, where the payment is authorized (held)
+            // and the attestation agent decides whether to capture it.
+            window.location.href = data.approve_url;
+        } catch (err: any) {
+            setError(err.message || 'An error occurred starting PayPal checkout.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const copyDepositAddress = () => {
         if (currentLicense?.deposit_address) {
             navigator.clipboard.writeText(currentLicense.deposit_address);
@@ -533,6 +598,43 @@ export default function Checkout({ works }: Props) {
                                 )}
                             </div>
 
+                            <div className="mb-4 grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    aria-pressed={paymentMethod === 'oneclick'}
+                                    onClick={() => setPaymentMethod('oneclick')}
+                                    className={`rounded-sm border p-2.5 text-center transition ${
+                                        paymentMethod === 'oneclick'
+                                            ? 'border-primary bg-primary text-primary-foreground'
+                                            : 'border-border bg-background text-foreground hover:border-input'
+                                    }`}
+                                >
+                                    <div className="text-xs font-medium">Crypto (1Click)</div>
+                                    <div
+                                        className={`mt-0.5 font-mono text-[11px] ${paymentMethod === 'oneclick' ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}
+                                    >
+                                        NEAR · SOL · EVM
+                                    </div>
+                                </button>
+                                <button
+                                    type="button"
+                                    aria-pressed={paymentMethod === 'paypal'}
+                                    onClick={() => setPaymentMethod('paypal')}
+                                    className={`rounded-sm border p-2.5 text-center transition ${
+                                        paymentMethod === 'paypal'
+                                            ? 'border-primary bg-primary text-primary-foreground'
+                                            : 'border-border bg-background text-foreground hover:border-input'
+                                    }`}
+                                >
+                                    <div className="text-xs font-medium">PayPal (Sandbox)</div>
+                                    <div
+                                        className={`mt-0.5 font-mono text-[11px] ${paymentMethod === 'paypal' ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}
+                                    >
+                                        Held until attested
+                                    </div>
+                                </button>
+                            </div>
+
                             {error && (
                                 <div
                                     key={`step3-err-${errorCount}`}
@@ -575,15 +677,36 @@ export default function Checkout({ works }: Props) {
                                 </p>
                             </div>
 
-                            <button
-                                type="button"
-                                data-testid="buy-license-btn"
-                                onClick={handleBuy}
-                                disabled={loading}
-                                className="bg-accent text-accent-foreground hover:bg-accent-deep mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold transition disabled:opacity-50"
-                            >
-                                {loading ? <span>Preparing 1Click Quote...</span> : <span>Buy (${currentPrice.toFixed(2)} USD)</span>}
-                            </button>
+                            {paymentMethod === 'oneclick' ? (
+                                <button
+                                    type="button"
+                                    data-testid="buy-license-btn"
+                                    onClick={handleBuy}
+                                    disabled={loading}
+                                    className="bg-accent text-accent-foreground hover:bg-accent-deep mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold transition disabled:opacity-50"
+                                >
+                                    {loading ? <span>Preparing 1Click Quote...</span> : <span>Buy (${currentPrice.toFixed(2)} USD)</span>}
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={handlePayPalCheckout}
+                                    disabled={loading}
+                                    className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#ffc439] px-4 py-3 text-sm font-semibold text-[#003087] transition hover:bg-[#ffce5e] disabled:opacity-50"
+                                >
+                                    {loading ? (
+                                        <span>Starting PayPal checkout...</span>
+                                    ) : (
+                                        <span>Continue with PayPal — ${currentPrice.toFixed(2)} USD (Sandbox)</span>
+                                    )}
+                                </button>
+                            )}
+                            {paymentMethod === 'paypal' && (
+                                <p className="text-muted-foreground mt-2 text-[11px]">
+                                    PayPal holds the payment — it is only captured after the licensing agent attests the license. If the attestation
+                                    fails, the hold is voided and you are never charged.
+                                </p>
+                            )}
                         </div>
                     </div>
 
@@ -722,8 +845,47 @@ export default function Checkout({ works }: Props) {
                                                 label: 'Signing Authority:',
                                                 value: 'NEAR MPC (path ethereum-1)',
                                             },
+                                            ...(currentLicense.payment_method === 'paypal'
+                                                ? [
+                                                      {
+                                                          label: 'Payment:',
+                                                          value: 'PayPal Sandbox (held)',
+                                                      },
+                                                      ...(currentLicense.paypal_order_id
+                                                          ? [
+                                                                {
+                                                                    label: 'PayPal Order:',
+                                                                    value: (
+                                                                        <span className="font-mono text-sm break-all">
+                                                                            {currentLicense.paypal_order_id}
+                                                                        </span>
+                                                                    ),
+                                                                },
+                                                            ]
+                                                          : []),
+                                                      ...(currentLicense.attestation_payload
+                                                          ? [
+                                                                {
+                                                                    label: 'Attestation:',
+                                                                    value: (
+                                                                        <span className="uppercase">
+                                                                            {currentLicense.attestation_payload.decision} ·{' '}
+                                                                            {currentLicense.attestation_payload.mode}
+                                                                        </span>
+                                                                    ),
+                                                                },
+                                                            ]
+                                                          : []),
+                                                  ]
+                                                : []),
                                         ]}
                                     />
+
+                                    {currentLicense.payment_method === 'paypal' && currentLicense.attestation_payload?.rationale && (
+                                        <div className="text-muted-foreground mt-3 text-[11px] leading-snug">
+                                            {currentLicense.attestation_payload.rationale}
+                                        </div>
+                                    )}
 
                                     {currentLicense.settlement_tx_hash && (
                                         <div className="border-success/40 bg-success/10 rounded-sm border p-3 font-mono text-xs">
