@@ -718,7 +718,9 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                                         required
                                     />
                                     <p className="text-muted-foreground mt-1 text-[11px]">
-                                        If the swap fails, the refund goes here. It must be an address you control on {selectedChain.name}.
+                                        {selectedChain.id === 'near'
+                                            ? 'If the swap fails, the refund goes here. It must be an existing NEAR account you control.'
+                                            : 'If the swap fails, the refund goes here. It must be an address you control on Solana.'}
                                     </p>
                                 </div>
                             )}
