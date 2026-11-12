@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
+import FoxMark from './fox-mark';
 
 const NAV_LINKS = [
     { href: '/checkout', label: 'Checkout', component: 'checkout' },
@@ -52,8 +53,9 @@ export default function SiteHeader() {
                     <div className="flex items-center gap-4 py-2.5 pr-2.5 pl-5">
                         <Link
                             href="/"
-                            className="text-foreground flex min-h-11 items-center text-xl font-extrabold tracking-tight whitespace-nowrap no-underline hover:underline hover:underline-offset-4"
+                            className="text-foreground flex min-h-11 items-center gap-2 text-xl font-extrabold tracking-tight whitespace-nowrap no-underline hover:underline hover:underline-offset-4"
                         >
+                            <FoxMark className="text-accent h-6 w-6 shrink-0" cutout="var(--card)" />
                             Stanza Cross-Chain
                         </Link>
                         <p className="text-muted-foreground m-0 hidden min-w-0 flex-1 text-right font-mono text-xs font-medium tracking-[0.08em] uppercase tabular-nums md:block">

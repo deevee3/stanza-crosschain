@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import PublicShell from '../components/public/public-shell';
 
 interface Work {
     id: number;
@@ -21,68 +22,61 @@ const TIER_LABELS: Record<string, string> = {
     read: 'Read',
     citation: 'Citation',
     commercial: 'Commercial',
+    exclusive: 'Exclusive',
+};
+
+const TIER_ORDER = ['read', 'citation', 'commercial', 'exclusive'];
+
+const DEFAULT_TERMS: Record<string, string> = {
+    read: 'Read the full work for personal, non-commercial use. No redistribution.',
+    citation: 'Cite the work with attribution in your own publications. No redistribution of the full text.',
+    commercial: 'Reuse the work commercially with attribution. No resale of the work itself.',
+    exclusive: 'Exclusive license: sole commercial reuse rights for the term agreed with the scholar.',
 };
 
 export default function WorkPage({ work }: Props) {
-    const tiers = Object.entries(work.tiers || {});
+    const tiers = TIER_ORDER.filter((tier) => work.tiers?.[tier] !== undefined).map((tier) => [tier, work.tiers[tier]] as const);
 
     return (
-        <div className="min-h-screen bg-neutral-950 text-neutral-100">
+        <PublicShell footerNote="Stanza Cross-Chain Licensing · Built with NEAR Intents 1Click & Chain Signatures MPC · Base Mainnet (8453)">
             <Head title={work.title} />
-            <main className="mx-auto max-w-3xl px-6 py-12">
-                <p className="text-sm text-emerald-400">
-                    <Link href="/checkout" className="hover:underline">
-                        Stanza Cross-Chain
-                    </Link>
-                </p>
-                <h1 className="mt-4 text-3xl font-semibold">{work.title}</h1>
-                <p className="mt-2 text-neutral-400">
-                    by{' '}
-                    <Link
-                        href={`/scholar/${work.scholar_address}`}
-                        className="text-neutral-200 hover:underline"
-                    >
-                        {work.scholar_name || work.scholar_address}
-                    </Link>
-                </p>
-                {work.description && (
-                    <p className="mt-6 leading-relaxed text-neutral-300">{work.description}</p>
-                )}
-                {work.content_hash && (
-                    <p className="mt-6 break-all font-mono text-xs text-neutral-500">
-                        Content fingerprint: {work.content_hash}
-                    </p>
-                )}
-
-                <h2 className="mt-10 text-xl font-semibold">License tiers</h2>
-                <div className="mt-4 space-y-4">
-                    {tiers.map(([tier, price]) => (
-                        <div
-                            key={tier}
-                            className="rounded-lg border border-neutral-800 bg-neutral-900 p-4"
-                        >
-                            <div className="flex items-baseline justify-between">
-                                <span className="font-medium">
-                                    {TIER_LABELS[tier] || tier}
-                                </span>
-                                <span className="text-emerald-400">${Number(price).toFixed(2)}</span>
-                            </div>
-                            {work.terms?.[tier] && (
-                                <p className="mt-2 text-sm leading-relaxed text-neutral-400">
-                                    {work.terms[tier]}
-                                </p>
-                            )}
-                        </div>
-                    ))}
-                </div>
-
-                <Link
-                    href="/checkout"
-                    className="mt-8 inline-block rounded-lg bg-emerald-500 px-5 py-3 font-medium text-neutral-950 hover:bg-emerald-400"
-                >
-                    License this work
+            <p className="text-muted-foreground text-sm">
+                <Link href="/checkout" className="text-foreground decoration-accent/60 hover:decoration-accent underline underline-offset-4">
+                    Stanza Cross-Chain
                 </Link>
-            </main>
-        </div>
+            </p>
+            <h1 className="text-foreground mt-4 text-3xl font-extrabold tracking-tight md:text-4xl">{work.title}</h1>
+            <p className="text-muted-foreground mt-2">
+                by{' '}
+                <Link
+                    href={`/scholar/${work.scholar_address}`}
+                    className="text-foreground decoration-accent/60 hover:decoration-accent font-medium underline underline-offset-4"
+                >
+                    {work.scholar_name || work.scholar_address}
+                </Link>
+            </p>
+            {work.description && <p className="text-foreground mt-6 max-w-[60ch] leading-relaxed">{work.description}</p>}
+            {work.content_hash && <p className="text-muted-foreground mt-6 font-mono text-xs break-all">Content fingerprint: {work.content_hash}</p>}
+
+            <h2 className="text-foreground mt-10 text-xl font-bold">License tiers</h2>
+            <div className="mt-4 space-y-4">
+                {tiers.map(([tier, price]) => (
+                    <div key={tier} className="border-border bg-card rounded-lg border p-4 shadow-sm">
+                        <div className="flex items-baseline justify-between gap-2">
+                            <span className="text-foreground font-semibold">{TIER_LABELS[tier] || tier}</span>
+                            <span className="text-foreground font-bold tabular-nums">${Number(price).toFixed(2)}</span>
+                        </div>
+                        <p className="text-muted-foreground mt-2 text-sm leading-relaxed">{work.terms?.[tier] ?? DEFAULT_TERMS[tier] ?? ''}</p>
+                    </div>
+                ))}
+            </div>
+
+            <Link
+                href="/checkout"
+                className="bg-accent text-accent-foreground hover:bg-accent-deep mt-8 inline-flex min-h-12 items-center rounded-full px-5 py-3 text-sm font-semibold transition"
+            >
+                License this work
+            </Link>
+        </PublicShell>
     );
 }

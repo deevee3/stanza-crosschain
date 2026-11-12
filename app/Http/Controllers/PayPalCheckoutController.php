@@ -61,14 +61,14 @@ class PayPalCheckoutController extends Controller
         // anyone controls; the buyer proves ownership via PayPal + email.
         $validated = $request->validate([
             'work_id' => 'required|exists:works,id',
-            'tier' => 'required|string|in:read,citation,commercial',
+            'tier' => 'required|string|in:read,citation,commercial,exclusive',
             'buyer_email' => 'required|string|email|max:255',
             'buyer_address' => ['nullable', 'string', 'regex:/^0x[a-fA-F0-9]{40}$/'],
         ]);
 
         $work = Work::findOrFail($validated['work_id']);
         $tier = $validated['tier'];
-        $price = (float) ($work->tiers[$tier] ?? 10.00);
+        $price = $work->tierPrice($tier);
 
         $buyerEmail = strtolower(trim($validated['buyer_email']));
         $buyerAddress = $validated['buyer_address']

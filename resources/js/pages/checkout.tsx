@@ -24,6 +24,7 @@ interface Work {
     scholar_address: string;
     description: string;
     tiers: Record<string, number>;
+    terms?: Record<string, string> | null;
 }
 
 interface QuotePayload {
@@ -96,6 +97,26 @@ const DEPOSIT_CHAINS = [
 
 const chainById = (id: string | null | undefined) => DEPOSIT_CHAINS.find((c) => c.id === id) ?? DEPOSIT_CHAINS[0];
 
+// Catalog tier defaults (USD) and default terms. These MUST match
+// App\Models\Work::TIER_DEFAULTS / DEFAULT_TERMS — the backend is
+// authoritative at quote time; these keep the UI honest when a work has
+// no price or terms stored for a tier.
+const TIER_KEYS = ['read', 'citation', 'commercial', 'exclusive'];
+
+const TIER_DEFAULTS: Record<string, number> = {
+    read: 10,
+    citation: 25,
+    commercial: 150,
+    exclusive: 500,
+};
+
+const DEFAULT_TERMS: Record<string, string> = {
+    read: 'Read the full work for personal, non-commercial use. No redistribution.',
+    citation: 'Cite the work with attribution in your own publications. No redistribution of the full text.',
+    commercial: 'Reuse the work commercially with attribution. No resale of the work itself.',
+    exclusive: 'Exclusive license: sole commercial reuse rights for the term agreed with the scholar.',
+};
+
 export default function Checkout({ works, returnLicenseId }: Props) {
     const [selectedWorkId, setSelectedWorkId] = useState<number>(works[0]?.id || 1);
     const [selectedTier, setSelectedTier] = useState<string>('read');
@@ -129,7 +150,8 @@ export default function Checkout({ works, returnLicenseId }: Props) {
     }, [returnLicenseId]);
 
     const activeWork = works.find((w) => w.id === selectedWorkId) || works[0];
-    const currentPrice = Number(activeWork?.tiers[selectedTier] ?? 1.0);
+    const currentPrice = Number(activeWork?.tiers[selectedTier] ?? TIER_DEFAULTS[selectedTier] ?? TIER_DEFAULTS.read);
+    const currentTerms = activeWork?.terms?.[selectedTier] ?? DEFAULT_TERMS[selectedTier] ?? DEFAULT_TERMS.read;
 
     // Check if wallet is already connected on mount
     useEffect(() => {
@@ -589,9 +611,9 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                             <label className="text-muted-foreground mb-3 block font-mono text-xs font-semibold tracking-[0.08em] uppercase">
                                 2. Select License Tier
                             </label>
-                            <div className="grid grid-cols-3 gap-3">
-                                {['read', 'citation', 'commercial'].map((tierKey) => {
-                                    const price = Number(activeWork?.tiers[tierKey] ?? 0);
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                {TIER_KEYS.map((tierKey) => {
+                                    const price = Number(activeWork?.tiers[tierKey] ?? TIER_DEFAULTS[tierKey] ?? 0);
                                     const isSelected = selectedTier === tierKey;
                                     return (
                                         <button
@@ -616,6 +638,10 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                                     );
                                 })}
                             </div>
+                            <p className="text-muted-foreground mt-3 text-xs leading-relaxed">
+                                <span className="text-foreground font-medium capitalize">{selectedTier} terms: </span>
+                                {currentTerms}
+                            </p>
                         </div>
 
                         {/* Step 3: Wallet & One-Tap Buy */}
