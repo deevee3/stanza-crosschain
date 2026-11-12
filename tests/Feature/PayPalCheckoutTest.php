@@ -83,6 +83,7 @@ class PayPalCheckoutTest extends TestCase
         $response = $this->postJson('/api/paypal/order', [
             'work_id' => $this->work->id,
             'tier' => 'read',
+            'buyer_email' => 'buyer@example.com',
             'buyer_address' => '0xc09ae916febb1d51de1a6eb5f4353ae48c348f84',
         ]);
 
@@ -96,6 +97,7 @@ class PayPalCheckoutTest extends TestCase
         $response = $this->postJson('/api/paypal/order', [
             'work_id' => $this->work->id,
             'tier' => 'read',
+            'buyer_email' => 'buyer@example.com',
             'buyer_address' => '0xc09ae916febb1d51de1a6eb5f4353ae48c348f84',
         ]);
 
@@ -110,6 +112,7 @@ class PayPalCheckoutTest extends TestCase
         $response = $this->postJson('/api/paypal/order', [
             'work_id' => $this->work->id,
             'tier' => 'read',
+            'buyer_email' => 'buyer@example.com',
             'buyer_address' => '0xc09ae916febb1d51de1a6eb5f4353ae48c348f84',
         ]);
 
@@ -121,10 +124,81 @@ class PayPalCheckoutTest extends TestCase
         $this->assertDatabaseHas('licenses', [
             'id' => $response->json('license.id'),
             'payment_method' => 'paypal',
+            'buyer_email' => 'buyer@example.com',
             'paypal_order_id' => 'ORDER-123',
             'tier' => 'read',
             'status' => 'pending',
         ]);
+    }
+
+    public function test_paypal_order_accepts_email_without_wallet_address(): void
+    {
+        $this->fakePayPal();
+
+        $response = $this->postJson('/api/paypal/order', [
+            'work_id' => $this->work->id,
+            'tier' => 'read',
+            'buyer_email' => 'buyer@example.com',
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('ok', true);
+
+        $license = License::findOrFail($response->json('license.id'));
+        $this->assertEquals('buyer@example.com', $license->buyer_email);
+        // No wallet supplied: the on-chain buyer address is derived
+        // deterministically from the email, and is a valid EVM address.
+        $this->assertMatchesRegularExpression('/^0x[a-fA-F0-9]{40}$/', $license->buyer_address);
+        $this->assertEquals(
+            '0x' . substr(hash('sha256', 'stanza-paypal-buyer:buyer@example.com'), -40),
+            $license->buyer_address
+        );
+    }
+
+    public function test_paypal_order_requires_email(): void
+    {
+        $this->fakePayPal();
+
+        $response = $this->postJson('/api/paypal/order', [
+            'work_id' => $this->work->id,
+            'tier' => 'read',
+            'buyer_address' => '0xc09ae916febb1d51de1a6eb5f4353ae48c348f84',
+        ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_paypal_order_rejects_invalid_email(): void
+    {
+        $this->fakePayPal();
+
+        $response = $this->postJson('/api/paypal/order', [
+            'work_id' => $this->work->id,
+            'tier' => 'read',
+            'buyer_email' => 'not-an-email',
+        ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_paypal_email_only_order_settles_end_to_end(): void
+    {
+        $this->fakePayPal();
+
+        $response = $this->postJson('/api/paypal/order', [
+            'work_id' => $this->work->id,
+            'tier' => 'read',
+            'buyer_email' => 'buyer@example.com',
+        ]);
+        $response->assertStatus(200);
+        $license = License::findOrFail($response->json('license.id'));
+
+        $this->get("/paypal/return?token=ORDER-123&license={$license->id}")->assertStatus(200);
+
+        $license->refresh();
+        $this->assertEquals('settled', $license->status);
+        $this->assertEquals('release', $license->attestation_payload['decision']);
+        $this->assertNotEmpty($license->settlement_tx_hash);
     }
 
     public function test_paypal_return_authorizes_captures_and_settles(): void
@@ -159,6 +233,7 @@ class PayPalCheckoutTest extends TestCase
         $license = License::create([
             'work_id' => $this->work->id,
             'buyer_address' => '0xc09ae916febb1d51de1a6eb5f4353ae48c348f84',
+            'buyer_email' => 'buyer@example.com',
             'tier' => 'read',
             'price_usd' => 10.00,
             'payment_method' => 'paypal',

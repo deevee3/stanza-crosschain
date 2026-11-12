@@ -163,6 +163,7 @@ class AttestationAgent
             'tier' => $license->tier,
             'tier_price_usd' => (float) $license->price_usd,
             'buyer_address' => $license->buyer_address,
+            'buyer_email' => $license->buyer_email,
             'paypal_order_id' => $license->paypal_order_id,
             'paypal_authorization_id' => $license->paypal_authorization_id,
             'authorized_amount_usd' => (float) ($payment['amount'] ?? 0),

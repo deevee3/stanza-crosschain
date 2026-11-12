@@ -31,7 +31,8 @@ makes the trust model explicit:
    HOLDS the funds. Nothing is captured yet.
 3. The licensing agent runs its attestation review: deterministic gates
    (work active, tier price matches the catalog, authorized amount matches
-   the tier price exactly, buyer address valid, no replay for this order)
+   the tier price exactly, buyer email present with a valid on-chain buyer
+   address, no replay for this order)
    plus, when configured, an LLM review of the manuscript record against
    the license terms. The verdict is stored on the license and shown in the
    UI.
@@ -103,8 +104,8 @@ Screen recording, live app + PayPal Sandbox. Total target 2:30.
   attestation agent checks the license before a cent moves. Then the
   license is recorded on Base." Show the checkout page, PayPal toggle.
 - **Beat 2 (0:20–0:50) — Pick a license.** Open the Quadratic Funding
-  replication manuscript. Pick the $1 read tier. Enter the buyer EVM
-  address. "Same catalog, same tiers as the crypto checkout — a second
+  replication manuscript. Pick the $1 read tier. Enter your email — no
+  wallet needed on the PayPal rail. "Same catalog, same tiers as the crypto checkout — a second
   rail, not a second product."
 - **Beat 3 (0:50–1:30) — PayPal hold.** Click "Continue with PayPal".
   Approve in the PayPal Sandbox (buyer test account). Come back: status
@@ -148,7 +149,8 @@ A reader picks a manuscript and a license tier — read $1, citation $25,
 commercial $150 — and pays with PayPal. PayPal holds the money; nothing is
 captured yet. An AI attestation agent checks the license: is the work real,
 does the tier price match the catalog, does the authorized amount match the
-price exactly, is the buyer address valid. If the check passes, the payment
+price exactly, is the buyer record valid (email present, on-chain buyer
+address valid). If the check passes, the payment
 is released to the scholar and the license is recorded on Base, a public
 ledger. If it fails, the hold is voided and the buyer is never charged.
 

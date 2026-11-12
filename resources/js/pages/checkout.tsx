@@ -50,6 +50,7 @@ interface License {
     id: number;
     work_id: number;
     buyer_address: string;
+    buyer_email?: string | null;
     refund_address?: string | null;
     tier: string;
     price_usd: number;
@@ -104,6 +105,7 @@ export default function Checkout({ works, returnLicenseId }: Props) {
     const [connectingWallet, setConnectingWallet] = useState<boolean>(false);
     const [paymentMethod, setPaymentMethod] = useState<'oneclick' | 'paypal'>('oneclick');
     const [buyerAddress, setBuyerAddress] = useState<string>('');
+    const [buyerEmail, setBuyerEmail] = useState<string>('');
     const [refundAddress, setRefundAddress] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
     const [paying, setPaying] = useState<boolean>(false);
@@ -386,6 +388,11 @@ export default function Checkout({ works, returnLicenseId }: Props) {
         setError(null);
 
         try {
+            const email = buyerEmail.trim();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                throw new Error('Enter a valid email address for the PayPal license.');
+            }
+
             const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content;
 
             const res = await fetch('/api/paypal/order', {
@@ -398,7 +405,12 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                 body: JSON.stringify({
                     work_id: activeWork.id,
                     tier: selectedTier,
-                    buyer_address: buyerAddress,
+                    buyer_email: email,
+                    // A connected wallet's address is used when present so
+                    // the on-chain record keys to a wallet the buyer
+                    // controls; otherwise the server derives one from the
+                    // email. A wallet is never required for PayPal.
+                    buyer_address: walletAddress || undefined,
                 }),
             });
 
@@ -734,38 +746,56 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                                 </div>
                             )}
 
-                            <div>
-                                <div className="mb-1 flex items-center justify-between">
-                                    <label className="text-muted-foreground block font-mono text-xs">Buyer EVM Address (Licensee)</label>
-                                    {walletAddress && (
-                                        <span className="text-foreground inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold">
-                                            <span className="bg-success h-1.5 w-1.5 rounded-full" />
-                                            Connected & Locked
-                                        </span>
-                                    )}
+                            {paymentMethod === 'oneclick' ? (
+                                <div>
+                                    <div className="mb-1 flex items-center justify-between">
+                                        <label className="text-muted-foreground block font-mono text-xs">Buyer EVM Address (Licensee)</label>
+                                        {walletAddress && (
+                                            <span className="text-foreground inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold">
+                                                <span className="bg-success h-1.5 w-1.5 rounded-full" />
+                                                Connected & Locked
+                                            </span>
+                                        )}
+                                    </div>
+                                    <input
+                                        type="text"
+                                        data-testid="buyer-address-input"
+                                        value={buyerAddress}
+                                        readOnly={Boolean(walletAddress)}
+                                        onChange={(e) => {
+                                            if (!walletAddress) {
+                                                setBuyerAddress(e.target.value);
+                                            }
+                                        }}
+                                        className={`min-h-11 w-full rounded-sm border px-3 py-2 font-mono text-xs transition ${
+                                            walletAddress
+                                                ? 'border-accent/40 bg-muted text-muted-foreground cursor-not-allowed'
+                                                : 'border-input bg-background text-foreground focus:border-ring'
+                                        }`}
+                                        placeholder="Connect wallet to auto-fill (0x...)"
+                                        required
+                                    />
+                                    <p className="text-muted-foreground mt-1 text-[11px]">
+                                        The address recorded as the verified buyer on Base LicenseRegistry.
+                                    </p>
                                 </div>
-                                <input
-                                    type="text"
-                                    data-testid="buyer-address-input"
-                                    value={buyerAddress}
-                                    readOnly={Boolean(walletAddress)}
-                                    onChange={(e) => {
-                                        if (!walletAddress) {
-                                            setBuyerAddress(e.target.value);
-                                        }
-                                    }}
-                                    className={`min-h-11 w-full rounded-sm border px-3 py-2 font-mono text-xs transition ${
-                                        walletAddress
-                                            ? 'border-accent/40 bg-muted text-muted-foreground cursor-not-allowed'
-                                            : 'border-input bg-background text-foreground focus:border-ring'
-                                    }`}
-                                    placeholder="Connect wallet to auto-fill (0x...)"
-                                    required
-                                />
-                                <p className="text-muted-foreground mt-1 text-[11px]">
-                                    The address recorded as the verified buyer on Base LicenseRegistry.
-                                </p>
-                            </div>
+                            ) : (
+                                <div>
+                                    <label className="text-muted-foreground mb-1 block font-mono text-xs">Email (Licensee)</label>
+                                    <input
+                                        type="email"
+                                        data-testid="buyer-email-input"
+                                        value={buyerEmail}
+                                        onChange={(e) => setBuyerEmail(e.target.value)}
+                                        className="border-input bg-background text-foreground focus:border-ring min-h-11 w-full rounded-sm border px-3 py-2 font-mono text-xs transition"
+                                        placeholder="you@example.com"
+                                        required
+                                    />
+                                    <p className="text-muted-foreground mt-1 text-[11px]">
+                                        No wallet needed. Your license is recorded on Base under an address derived from this email.
+                                    </p>
+                                </div>
+                            )}
 
                             {paymentMethod === 'oneclick' ? (
                                 <button

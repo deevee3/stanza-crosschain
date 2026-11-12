@@ -42,6 +42,10 @@ class PayPalCheckoutController extends Controller
 {
     /**
      * Create a PayPal license request + PayPal AUTHORIZE order.
+     *
+     * The buyer is identified by email; a wallet address is optional and,
+     * when absent, the on-chain buyer address is derived from the email.
+     * A wallet is never required on the PayPal rail.
      */
     public function createOrder(Request $request, PayPalService $paypal): JsonResponse
     {
@@ -49,19 +53,31 @@ class PayPalCheckoutController extends Controller
             return response()->json(['ok' => false, 'error' => 'paypal_not_configured'], 503);
         }
 
+        // PayPal buyers are identified by email, not by a wallet: requiring
+        // a wallet address on the PayPal rail contradicts the rail's
+        // purpose. The on-chain license record still needs a buyer address,
+        // so when the buyer supplies none we derive one deterministically
+        // from the email. The derived address is a record key, not a wallet
+        // anyone controls; the buyer proves ownership via PayPal + email.
         $validated = $request->validate([
             'work_id' => 'required|exists:works,id',
             'tier' => 'required|string|in:read,citation,commercial',
-            'buyer_address' => ['required', 'string', 'regex:/^0x[a-fA-F0-9]{40}$/'],
+            'buyer_email' => 'required|string|email|max:255',
+            'buyer_address' => ['nullable', 'string', 'regex:/^0x[a-fA-F0-9]{40}$/'],
         ]);
 
         $work = Work::findOrFail($validated['work_id']);
         $tier = $validated['tier'];
         $price = (float) ($work->tiers[$tier] ?? 10.00);
 
+        $buyerEmail = strtolower(trim($validated['buyer_email']));
+        $buyerAddress = $validated['buyer_address']
+            ?? '0x' . substr(hash('sha256', 'stanza-paypal-buyer:' . $buyerEmail), -40);
+
         $license = License::create([
             'work_id' => $work->id,
-            'buyer_address' => $validated['buyer_address'],
+            'buyer_email' => $buyerEmail,
+            'buyer_address' => $buyerAddress,
             'tier' => $tier,
             'price_usd' => $price,
             'payment_method' => 'paypal',
