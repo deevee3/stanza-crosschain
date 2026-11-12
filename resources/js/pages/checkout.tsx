@@ -439,8 +439,7 @@ export default function Checkout({ works, returnLicenseId }: Props) {
         currentLicense?.quote_payload?.amountInFormatted ??
         (quotedAmountInRaw && /^\d+$/.test(quotedAmountInRaw) ? formatUnits(BigInt(quotedAmountInRaw), licenseChain.decimals) : null);
     const quoteDeadlineRaw = currentLicense?.quote_payload?.deadline ?? null;
-    const quoteDeadlineLabel =
-        quoteDeadlineRaw && !Number.isNaN(Date.parse(quoteDeadlineRaw)) ? new Date(quoteDeadlineRaw).toLocaleString() : null;
+    const quoteDeadlineLabel = quoteDeadlineRaw && !Number.isNaN(Date.parse(quoteDeadlineRaw)) ? new Date(quoteDeadlineRaw).toLocaleString() : null;
 
     return (
         <>
@@ -457,8 +456,8 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                         </div>
                         <h1 className="text-foreground mt-2 text-4xl font-extrabold tracking-tight md:text-5xl">Stanza Cross-Chain Licensing</h1>
                         <p className="text-muted-foreground mt-2 max-w-[60ch] text-base leading-relaxed">
-                            Pay from Base, NEAR, Solana, or Arbitrum — one tap on Base, a deposit address everywhere else. Settles on Base
-                            via NEAR MPC with zero server EVM keys.
+                            Pay from Base, NEAR, Solana, or Arbitrum — one tap on Base, a deposit address everywhere else. Settles on Base via NEAR
+                            MPC with zero server EVM keys.
                         </p>
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center gap-2.5">
@@ -816,8 +815,8 @@ export default function Checkout({ works, returnLicenseId }: Props) {
 
                             {!currentLicense ? (
                                 <div className="text-muted-foreground py-12 text-center font-mono text-xs leading-relaxed">
-                                    Select a manuscript, pick a chain, and click &ldquo;Buy&rdquo; to get a quote — one-tap payment on Base, a
-                                    deposit address on other chains.
+                                    Select a manuscript, pick a chain, and click &ldquo;Buy&rdquo; to get a quote — one-tap payment on Base, a deposit
+                                    address on other chains.
                                 </div>
                             ) : (
                                 <div className="mt-4 space-y-5">
@@ -861,64 +860,64 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                                         currentLicense.status !== 'failed' &&
                                         currentLicense.deposit_address &&
                                         currentLicense.deposit_chain === 'base' && (
-                                        <div className="space-y-2.5">
-                                            <button
-                                                type="button"
-                                                data-testid="pay-now-btn"
-                                                onClick={handlePay}
-                                                disabled={paying || !quotedAmountInRaw}
-                                                className="bg-accent text-accent-foreground shadow-glow hover:bg-accent-deep flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-4 py-3.5 text-sm font-bold transition disabled:opacity-50"
-                                            >
-                                                {paying ? (
-                                                    <span>Confirm in Wallet...</span>
-                                                ) : (
-                                                    <span>Pay {quotedAmountFormatted ? `${quotedAmountFormatted} USDC` : 'Now'}</span>
-                                                )}
-                                            </button>
-
-                                            {paymentTxHash && (
-                                                <div className="border-success/40 bg-success/10 text-foreground rounded-sm border p-2.5 font-mono text-xs">
-                                                    <div className="font-semibold">✓ Payment submitted on Base</div>
-                                                    <div className="text-muted-foreground mt-0.5 truncate text-[11px]">Tx: {paymentTxHash}</div>
-                                                    <div className="text-muted-foreground mt-1 text-[11px]">
-                                                        Waiting for 1Click verification & NEAR MPC settlement...
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {preparedTransfer && !paymentTxHash && (
-                                                <div
-                                                    data-testid="prepared-transfer-details"
-                                                    className="border-border bg-background text-muted-foreground space-y-1 rounded-sm border p-2.5 font-mono text-[11px]"
-                                                >
-                                                    <div className="text-foreground font-semibold">Wallet Transfer Request (Base 8453)</div>
-                                                    <div className="truncate">Token: {BASE_USDC_ADDRESS}</div>
-                                                    <div className="truncate">To: {preparedTransfer.to}</div>
-                                                    <div>
-                                                        Amount: {preparedTransfer.amountFormatted} USDC ({preparedTransfer.amountIn} units)
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Small manual fallback line */}
-                                            <div className="text-muted-foreground flex items-center justify-between gap-2 pt-1 font-mono text-[11px]">
-                                                <span className="truncate">
-                                                    or send manually to{' '}
-                                                    <span data-testid="fallback-deposit-address" className="text-foreground select-all">
-                                                        {currentLicense.deposit_address}
-                                                    </span>
-                                                </span>
+                                            <div className="space-y-2.5">
                                                 <button
                                                     type="button"
-                                                    onClick={copyDepositAddress}
-                                                    className="border-border bg-card text-foreground hover:border-input inline-flex min-h-11 shrink-0 items-center rounded-full border px-3 text-[10px] transition"
-                                                    title="Copy deposit address"
+                                                    data-testid="pay-now-btn"
+                                                    onClick={handlePay}
+                                                    disabled={paying || !quotedAmountInRaw}
+                                                    className="bg-accent text-accent-foreground shadow-glow hover:bg-accent-deep flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-4 py-3.5 text-sm font-bold transition disabled:opacity-50"
                                                 >
-                                                    {copied ? 'Copied' : 'Copy'}
+                                                    {paying ? (
+                                                        <span>Confirm in Wallet...</span>
+                                                    ) : (
+                                                        <span>Pay {quotedAmountFormatted ? `${quotedAmountFormatted} USDC` : 'Now'}</span>
+                                                    )}
                                                 </button>
+
+                                                {paymentTxHash && (
+                                                    <div className="border-success/40 bg-success/10 text-foreground rounded-sm border p-2.5 font-mono text-xs">
+                                                        <div className="font-semibold">✓ Payment submitted on Base</div>
+                                                        <div className="text-muted-foreground mt-0.5 truncate text-[11px]">Tx: {paymentTxHash}</div>
+                                                        <div className="text-muted-foreground mt-1 text-[11px]">
+                                                            Waiting for 1Click verification & NEAR MPC settlement...
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {preparedTransfer && !paymentTxHash && (
+                                                    <div
+                                                        data-testid="prepared-transfer-details"
+                                                        className="border-border bg-background text-muted-foreground space-y-1 rounded-sm border p-2.5 font-mono text-[11px]"
+                                                    >
+                                                        <div className="text-foreground font-semibold">Wallet Transfer Request (Base 8453)</div>
+                                                        <div className="truncate">Token: {BASE_USDC_ADDRESS}</div>
+                                                        <div className="truncate">To: {preparedTransfer.to}</div>
+                                                        <div>
+                                                            Amount: {preparedTransfer.amountFormatted} USDC ({preparedTransfer.amountIn} units)
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Small manual fallback line */}
+                                                <div className="text-muted-foreground flex items-center justify-between gap-2 pt-1 font-mono text-[11px]">
+                                                    <span className="truncate">
+                                                        or send manually to{' '}
+                                                        <span data-testid="fallback-deposit-address" className="text-foreground select-all">
+                                                            {currentLicense.deposit_address}
+                                                        </span>
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={copyDepositAddress}
+                                                        className="border-border bg-card text-foreground hover:border-input inline-flex min-h-11 shrink-0 items-center rounded-full border px-3 text-[10px] transition"
+                                                        title="Copy deposit address"
+                                                    >
+                                                        {copied ? 'Copied' : 'Copy'}
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
 
                                     {/* Deposit-address flow (NEAR, Solana, Arbitrum): send the exact quoted amount from any wallet on the origin chain. */}
                                     {currentLicense.status !== 'settled' &&
@@ -950,8 +949,8 @@ export default function Checkout({ works, returnLicenseId }: Props) {
 
                                                 {quotedAmountFormatted && (
                                                     <div className="border-border bg-background text-foreground rounded-sm border p-2.5 font-mono text-[11px] leading-relaxed">
-                                                        Send exactly {quotedAmountFormatted} {licenseChain.symbol} to the deposit address
-                                                        from any {licenseChain.name} wallet.
+                                                        Send exactly {quotedAmountFormatted} {licenseChain.symbol} to the deposit address from any{' '}
+                                                        {licenseChain.name} wallet.
                                                         {quoteDeadlineLabel && <> Quote valid until {quoteDeadlineLabel}.</>}
                                                     </div>
                                                 )}
