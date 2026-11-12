@@ -12,6 +12,8 @@ class Work extends Model
 
     protected $fillable = [
         'work_id',
+        'content_hash',
+        'file_path',
         'title',
         'slug',
         'scholar_name',
@@ -19,11 +21,13 @@ class Work extends Model
         'metadata_uri',
         'description',
         'tiers',
+        'terms',
         'is_active',
     ];
 
     protected $casts = [
         'tiers' => 'array',
+        'terms' => 'array',
         'is_active' => 'boolean',
     ];
 

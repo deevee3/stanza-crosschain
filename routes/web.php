@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\ScholarController;
+use App\Http\Controllers\WorkController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [CheckoutController::class, 'index'])->name('home');
@@ -13,3 +14,6 @@ Route::get('/api/lookup', [CheckoutController::class, 'resolveHash'])->name('api
 
 Route::get('/lookup', [CheckoutController::class, 'lookupPage'])->name('lookup');
 Route::get('/scholar/{address}', [ScholarController::class, 'show'])->name('scholar.show');
+
+Route::get('/work/{slug}', [WorkController::class, 'show'])->name('work.show');
+Route::post('/api/works', [WorkController::class, 'store'])->name('api.works.store');
