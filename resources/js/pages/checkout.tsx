@@ -484,14 +484,11 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                     <div>
                         <div className="flex items-center gap-2">
                             <span className="bg-success h-2.5 w-2.5 animate-pulse rounded-full" />
-                            <span className="text-muted-foreground font-mono text-xs font-semibold tracking-[0.08em] uppercase">
-                                NEAR Intents 1Click + Chain Signatures MPC
-                            </span>
+                            <span className="text-muted-foreground font-mono text-xs font-semibold tracking-[0.08em] uppercase">Live</span>
                         </div>
                         <h1 className="text-foreground mt-2 text-4xl font-extrabold tracking-tight md:text-5xl">Stanza Cross-Chain Licensing</h1>
                         <p className="text-muted-foreground mt-2 max-w-[60ch] text-base leading-relaxed">
-                            Pay from Base, NEAR, Solana, or Arbitrum — one tap on Base, a deposit address everywhere else. Settles on Base via NEAR
-                            MPC with zero server EVM keys.
+                            Connect your wallet, pick a work and a tier, and check out.
                         </p>
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center gap-2.5">
