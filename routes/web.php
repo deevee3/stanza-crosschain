@@ -22,4 +22,5 @@ Route::get('/lookup', [CheckoutController::class, 'lookupPage'])->name('lookup')
 Route::get('/scholar/{address}', [ScholarController::class, 'show'])->name('scholar.show');
 
 Route::get('/work/{slug}', [WorkController::class, 'show'])->name('work.show');
+Route::get('/api/upload-challenge', [WorkController::class, 'challenge'])->name('api.works.challenge');
 Route::post('/api/works', [WorkController::class, 'store'])->name('api.works.store');

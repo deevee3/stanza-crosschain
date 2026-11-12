@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Work;
+use App\Services\EthereumSignatureService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -13,32 +14,58 @@ class WorkUploadTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected string $scholarAddress = '0x5C10a12345678901234567890123456789012345';
+    /**
+     * Private key 0x01 recovers to this address (verified against cast).
+     * Uploads are signed with this key, so the scholar address must match.
+     */
+    protected string $testPrivateKey = '0x0000000000000000000000000000000000000000000000000000000000000001';
+
+    protected string $scholarAddress = '0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf';
+
+    /**
+     * Get a fresh upload challenge for the scholar address and sign it
+     * with the test key. Returns the auth fields for POST /api/works.
+     */
+    protected function signedAuth(?string $address = null): array
+    {
+        $address ??= $this->scholarAddress;
+
+        $challenge = $this->getJson('/api/upload-challenge?address=' . $address);
+        $challenge->assertOk();
+        $message = $challenge->json('message');
+
+        return [
+            'challenge_message' => $message,
+            'signature' => EthereumSignatureService::sign($this->testPrivateKey, $message),
+        ];
+    }
 
     public function test_upload_creates_work_with_content_hash_and_stored_file(): void
     {
         Storage::fake('local');
 
-        $file = UploadedFile::fake()->create('manuscript.pdf', 100, 'application/pdf');
-        $expectedHash = '0x' . hash_file('sha256', $file->getRealPath());
+        $content = 'A study of cross-chain licensing mechanics. Version one.';
+        $file = UploadedFile::fake()->createWithContent('manuscript.txt', $content);
+        $expectedHash = EthereumSignatureService::keccak256Hex($content);
 
-        $response = $this->post('/api/works', [
+        $response = $this->post('/api/works', array_merge([
             'title' => 'A Study of Cross-Chain Licensing',
             'scholar_address' => $this->scholarAddress,
             'scholar_name' => 'Prof. Katherine Vance',
             'description' => 'A study of cross-chain licensing mechanics.',
             'file' => $file,
-        ]);
+        ], $this->signedAuth()));
 
         $response->assertCreated();
         $response->assertJsonPath('slug', 'a-study-of-cross-chain-licensing');
         $response->assertJsonPath('content_hash', $expectedHash);
+        $response->assertJsonPath('work_id', $expectedHash);
         $response->assertJsonPath('url', url('/work/a-study-of-cross-chain-licensing'));
 
         $work = Work::where('slug', 'a-study-of-cross-chain-licensing')->firstOrFail();
         $this->assertSame($expectedHash, $work->content_hash);
-        $this->assertSame('0x' . hash('sha256', 'manuscript-a-study-of-cross-chain-licensing'), $work->work_id);
-        $this->assertEquals(['read' => 10.00, 'citation' => 25.00, 'commercial' => 150.00], $work->tiers);
+        $this->assertSame($expectedHash, $work->work_id);
+        $this->assertEquals(['read' => 10.00, 'citation' => 25.00, 'commercial' => 150.00, 'exclusive' => 500.00], $work->tiers);
         $this->assertTrue($work->is_active);
         Storage::disk('local')->assertExists($work->file_path);
     }
@@ -47,24 +74,26 @@ class WorkUploadTest extends TestCase
     {
         Storage::fake('local');
 
-        $response = $this->post('/api/works', [
+        $response = $this->post('/api/works', array_merge([
             'title' => 'Terms Test Manuscript',
             'scholar_address' => $this->scholarAddress,
-            'file' => UploadedFile::fake()->create('terms.pdf', 50, 'application/pdf'),
-            'tiers' => ['read' => 5.00, 'citation' => 50.00, 'commercial' => 500.00],
+            'file' => UploadedFile::fake()->createWithContent('terms.txt', 'Terms test manuscript bytes.'),
+            'tiers' => ['read' => 5.00, 'citation' => 50.00, 'commercial' => 500.00, 'exclusive' => 900.00],
             'terms' => [
                 'read' => 'Read-only access for one human reader.',
                 'citation' => 'Cite with attribution to the scholar.',
                 'commercial' => 'Commercial reuse allowed with attribution.',
+                'exclusive' => 'Sole commercial reuse for one year.',
             ],
-        ]);
+        ], $this->signedAuth()));
 
         $response->assertCreated();
 
         $work = Work::where('slug', 'terms-test-manuscript')->firstOrFail();
-        $this->assertEquals(['read' => 5.00, 'citation' => 50.00, 'commercial' => 500.00], $work->tiers);
+        $this->assertEquals(['read' => 5.00, 'citation' => 50.00, 'commercial' => 500.00, 'exclusive' => 900.00], $work->tiers);
         $this->assertSame('Read-only access for one human reader.', $work->terms['read']);
         $this->assertSame('Commercial reuse allowed with attribution.', $work->terms['commercial']);
+        $this->assertSame('Sole commercial reuse for one year.', $work->terms['exclusive']);
     }
 
     public function test_upload_derives_unique_slug_for_duplicate_titles(): void
@@ -74,16 +103,118 @@ class WorkUploadTest extends TestCase
         $payload = [
             'title' => 'Duplicate Title',
             'scholar_address' => $this->scholarAddress,
-            'file' => UploadedFile::fake()->create('one.pdf', 10, 'application/pdf'),
+            'file' => UploadedFile::fake()->createWithContent('one.txt', 'First manuscript with this title.'),
         ];
 
-        $this->post('/api/works', $payload)->assertCreated();
+        $this->post('/api/works', array_merge($payload, $this->signedAuth()))->assertCreated();
 
-        $payload['file'] = UploadedFile::fake()->create('two.pdf', 10, 'application/pdf');
-        $response = $this->post('/api/works', $payload);
+        $payload['file'] = UploadedFile::fake()->createWithContent('two.txt', 'Second, different manuscript with this title.');
+        $response = $this->post('/api/works', array_merge($payload, $this->signedAuth()));
 
         $response->assertCreated();
         $response->assertJsonPath('slug', 'duplicate-title-2');
+    }
+
+    public function test_upload_rejects_duplicate_file_bytes(): void
+    {
+        Storage::fake('local');
+
+        $content = 'The same manuscript bytes, uploaded twice.';
+        $payload = [
+            'title' => 'Original Upload',
+            'scholar_address' => $this->scholarAddress,
+            'file' => UploadedFile::fake()->createWithContent('original.txt', $content),
+        ];
+
+        $this->post('/api/works', array_merge($payload, $this->signedAuth()))->assertCreated();
+
+        $payload['title'] = 'Second Upload Of The Same File';
+        $payload['file'] = UploadedFile::fake()->createWithContent('copy.txt', $content);
+        $response = $this->post('/api/works', array_merge($payload, $this->signedAuth()), ['Accept' => 'application/json']);
+
+        $response->assertConflict();
+        $response->assertJsonPath('slug', 'original-upload');
+        $response->assertJsonPath('url', url('/work/original-upload'));
+        $this->assertSame(1, Work::count());
+    }
+
+    public function test_upload_requires_signature_fields(): void
+    {
+        Storage::fake('local');
+
+        $response = $this->post('/api/works', [
+            'title' => 'No Signature',
+            'scholar_address' => $this->scholarAddress,
+            'file' => UploadedFile::fake()->createWithContent('nosig.txt', 'Unsigned upload bytes.'),
+        ], ['Accept' => 'application/json']);
+
+        $response->assertUnprocessable();
+        $response->assertJsonValidationErrors(['challenge_message', 'signature']);
+        $this->assertSame(0, Work::count());
+    }
+
+    public function test_upload_rejects_signature_from_different_wallet(): void
+    {
+        Storage::fake('local');
+
+        // Challenge issued for the scholar address, but signed with a
+        // different key (0x02) — the recovered address won't match.
+        $challenge = $this->getJson('/api/upload-challenge?address=' . $this->scholarAddress);
+        $message = $challenge->json('message');
+        $wrongKey = '0x0000000000000000000000000000000000000000000000000000000000000002';
+
+        $response = $this->post('/api/works', [
+            'title' => 'Wrong Wallet',
+            'scholar_address' => $this->scholarAddress,
+            'file' => UploadedFile::fake()->createWithContent('wrong.txt', 'Wrong-wallet upload bytes.'),
+            'challenge_message' => $message,
+            'signature' => EthereumSignatureService::sign($wrongKey, $message),
+        ], ['Accept' => 'application/json']);
+
+        $response->assertForbidden();
+        $this->assertSame(0, Work::count());
+    }
+
+    public function test_upload_rejects_replayed_challenge(): void
+    {
+        Storage::fake('local');
+
+        $auth = $this->signedAuth();
+        $payload = [
+            'title' => 'First Use Of Challenge',
+            'scholar_address' => $this->scholarAddress,
+            'file' => UploadedFile::fake()->createWithContent('first.txt', 'First use bytes.'),
+        ];
+
+        $this->post('/api/works', array_merge($payload, $auth))->assertCreated();
+
+        // Same challenge message + signature, second time: the nonce was
+        // consumed by the first upload.
+        $payload['title'] = 'Replay Attempt';
+        $payload['file'] = UploadedFile::fake()->createWithContent('replay.txt', 'Different bytes, replayed auth.');
+        $response = $this->post('/api/works', array_merge($payload, $auth), ['Accept' => 'application/json']);
+
+        $response->assertForbidden();
+        $this->assertSame(1, Work::count());
+    }
+
+    public function test_upload_rejects_expired_challenge(): void
+    {
+        Storage::fake('local');
+
+        $auth = $this->signedAuth();
+        $this->travel(11)->minutes();
+
+        $response = $this->post('/api/works', [
+            'title' => 'Expired Challenge',
+            'scholar_address' => $this->scholarAddress,
+            'file' => UploadedFile::fake()->createWithContent('expired.txt', 'Expired-challenge bytes.'),
+            'challenge_message' => $auth['challenge_message'],
+            'signature' => $auth['signature'],
+        ], ['Accept' => 'application/json']);
+
+        $response->assertForbidden();
+        $this->assertSame(0, Work::count());
     }
 
     public function test_upload_rejects_oversized_file(): void
