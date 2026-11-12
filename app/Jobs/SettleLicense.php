@@ -16,6 +16,17 @@ class SettleLicense implements ShouldQueue
 
     public License $license;
 
+    /**
+     * Bounded retries: the live worker runs with --tries=0 (WatchSettlement
+     * needs unlimited attempts), but a settle that throws must land in
+     * failed_jobs for human eyes instead of retrying forever — a deposit
+     * has already moved by this point. The job-level $tries overrides
+     * the worker's --tries. Generous backoff: a swap can need minutes
+     * to flip to SUCCESS.
+     */
+    public int $tries = 5;
+    public int $backoff = 60;
+
     public function __construct(License $license)
     {
         $this->license = $license;

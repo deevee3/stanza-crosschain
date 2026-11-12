@@ -1,7 +1,6 @@
 import {
     BASE_CHAIN_ID,
     BASE_USDC_ADDRESS,
-    BASE_USDC_DECIMALS,
     connectInjectedWallet,
     getConnectedWalletSilent,
     getEthereumProvider,
@@ -51,6 +50,7 @@ interface License {
     id: number;
     work_id: number;
     buyer_address: string;
+    refund_address?: string | null;
     tier: string;
     price_usd: number;
     payment_method?: string;
@@ -81,12 +81,19 @@ interface Props {
     returnLicenseId?: number;
 }
 
+// Origin-chain asset IDs, exactly as the live 1Click /v0/tokens registry
+// lists them (verified 2026-11-12). The Base USDC erc20 form is normalized
+// to its omft form server-side; the legacy `solana:native` /
+// `arbitrum:native` IDs are rejected by the live API ("tokenIn is not
+// valid") and are mapped server-side for stale clients.
 const DEPOSIT_CHAINS = [
-    { id: 'base', name: 'Base', asset: 'erc20:base:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', symbol: 'USDC' },
-    { id: 'near', name: 'NEAR Protocol', asset: 'nep141:wrap.near', symbol: 'NEAR' },
-    { id: 'solana', name: 'Solana', asset: 'solana:native', symbol: 'SOL' },
-    { id: 'arbitrum', name: 'Arbitrum', asset: 'arbitrum:native', symbol: 'ETH' },
+    { id: 'base', name: 'Base', asset: 'erc20:base:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', symbol: 'USDC', decimals: 6 },
+    { id: 'near', name: 'NEAR Protocol', asset: 'nep141:wrap.near', symbol: 'NEAR', decimals: 24 },
+    { id: 'solana', name: 'Solana', asset: 'nep141:sol.omft.near', symbol: 'SOL', decimals: 9 },
+    { id: 'arbitrum', name: 'Arbitrum', asset: 'nep141:arb.omft.near', symbol: 'ETH', decimals: 18 },
 ];
+
+const chainById = (id: string | null | undefined) => DEPOSIT_CHAINS.find((c) => c.id === id) ?? DEPOSIT_CHAINS[0];
 
 export default function Checkout({ works, returnLicenseId }: Props) {
     const [selectedWorkId, setSelectedWorkId] = useState<number>(works[0]?.id || 1);
@@ -97,6 +104,7 @@ export default function Checkout({ works, returnLicenseId }: Props) {
     const [connectingWallet, setConnectingWallet] = useState<boolean>(false);
     const [paymentMethod, setPaymentMethod] = useState<'oneclick' | 'paypal'>('oneclick');
     const [buyerAddress, setBuyerAddress] = useState<string>('');
+    const [refundAddress, setRefundAddress] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
     const [paying, setPaying] = useState<boolean>(false);
     const [paymentTxHash, setPaymentTxHash] = useState<string | null>(null);
@@ -200,7 +208,6 @@ export default function Checkout({ works, returnLicenseId }: Props) {
             setWalletAddress(address);
             setWalletChainId(chainId);
             setBuyerAddress(address);
-            setSelectedChain(DEPOSIT_CHAINS[0]); // Base USDC
         } catch (err: any) {
             reportError(err.message || 'Failed to connect wallet.');
         } finally {
@@ -216,7 +223,6 @@ export default function Checkout({ works, returnLicenseId }: Props) {
             setWalletAddress(address);
             setWalletChainId(chainId);
             setBuyerAddress(address);
-            setSelectedChain(DEPOSIT_CHAINS[0]); // Base USDC
         } catch (err: any) {
             reportError(err.message || 'Failed to switch wallet account.');
         } finally {
@@ -262,6 +268,28 @@ export default function Checkout({ works, returnLicenseId }: Props) {
         setPreparedTransfer(null);
 
         try {
+            // Refunds go to the origin chain, so NEAR and Solana checkouts
+            // need an origin-chain refund address up front. The server
+            // validates authoritatively; this catches obvious mistakes
+            // before the quote is requested.
+            const needsRefundAddress = selectedChain.id === 'near' || selectedChain.id === 'solana';
+            const trimmedRefund = refundAddress.trim();
+            if (needsRefundAddress) {
+                const validRefund =
+                    selectedChain.id === 'near'
+                        ? /^([0-9a-f]{64}|[a-z0-9][a-z0-9_\-.]*[a-z0-9])$/.test(trimmedRefund) &&
+                          trimmedRefund.length >= 2 &&
+                          trimmedRefund.length <= 64
+                        : /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(trimmedRefund);
+                if (!validRefund) {
+                    throw new Error(
+                        selectedChain.id === 'near'
+                            ? 'Enter a valid NEAR account for refunds (e.g. you.near).'
+                            : 'Enter a valid Solana address for refunds.',
+                    );
+                }
+            }
+
             let activeBuyer = buyerAddress.trim();
             if (!activeBuyer) {
                 const connected = await connectInjectedWallet();
@@ -284,6 +312,7 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                     work_id: activeWork.id,
                     tier: selectedTier,
                     buyer_address: activeBuyer,
+                    refund_address: needsRefundAddress ? trimmedRefund : undefined,
                     deposit_asset: selectedChain.asset,
                     deposit_chain: selectedChain.id,
                 }),
@@ -401,11 +430,17 @@ export default function Checkout({ works, returnLicenseId }: Props) {
         }
     };
 
-    // Derive exact quoted USDC amount from quote_payload.amountIn (never hardcode)
+    // The license's own chain is authoritative for the amount display: the
+    // quote is priced in the origin asset (USDC on Base, NEAR, SOL, ETH),
+    // each with its own decimals. Never hardcode the amount or the asset.
+    const licenseChain = chainById(currentLicense?.deposit_chain ?? selectedChain.id);
     const quotedAmountInRaw = currentLicense?.quote_payload?.amountIn ?? null;
     const quotedAmountFormatted =
         currentLicense?.quote_payload?.amountInFormatted ??
-        (quotedAmountInRaw && /^\d+$/.test(quotedAmountInRaw) ? formatUnits(BigInt(quotedAmountInRaw), BASE_USDC_DECIMALS) : null);
+        (quotedAmountInRaw && /^\d+$/.test(quotedAmountInRaw) ? formatUnits(BigInt(quotedAmountInRaw), licenseChain.decimals) : null);
+    const quoteDeadlineRaw = currentLicense?.quote_payload?.deadline ?? null;
+    const quoteDeadlineLabel =
+        quoteDeadlineRaw && !Number.isNaN(Date.parse(quoteDeadlineRaw)) ? new Date(quoteDeadlineRaw).toLocaleString() : null;
 
     return (
         <>
@@ -422,7 +457,8 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                         </div>
                         <h1 className="text-foreground mt-2 text-4xl font-extrabold tracking-tight md:text-5xl">Stanza Cross-Chain Licensing</h1>
                         <p className="text-muted-foreground mt-2 max-w-[60ch] text-base leading-relaxed">
-                            Connect wallet, click Buy, approve one payment. Settles on Base via NEAR MPC with zero server EVM keys.
+                            Pay from Base, NEAR, Solana, or Arbitrum — one tap on Base, a deposit address everywhere else. Settles on Base
+                            via NEAR MPC with zero server EVM keys.
                         </p>
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center gap-2.5">
@@ -635,6 +671,59 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                                 </button>
                             </div>
 
+                            {/* Origin chain picker. Base keeps the one-tap flow; NEAR, Solana, and Arbitrum use the deposit-address flow. */}
+                            {paymentMethod === 'oneclick' && (
+                                <div className="mb-4">
+                                    <label className="text-muted-foreground mb-2 block font-mono text-xs">Pay From</label>
+                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="chain-picker">
+                                        {DEPOSIT_CHAINS.map((chain) => {
+                                            const isSelected = selectedChain.id === chain.id;
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    key={chain.id}
+                                                    data-testid={`chain-option-${chain.id}`}
+                                                    aria-pressed={isSelected}
+                                                    onClick={() => setSelectedChain(chain)}
+                                                    className={`rounded-sm border p-2.5 text-center transition ${
+                                                        isSelected
+                                                            ? 'border-primary bg-primary text-primary-foreground'
+                                                            : 'border-border bg-background text-foreground hover:border-input'
+                                                    }`}
+                                                >
+                                                    <div className="text-xs font-medium">{chain.name}</div>
+                                                    <div
+                                                        className={`mt-0.5 font-mono text-[11px] ${isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}
+                                                    >
+                                                        {chain.symbol}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {paymentMethod === 'oneclick' && (selectedChain.id === 'near' || selectedChain.id === 'solana') && (
+                                <div className="mb-4">
+                                    <label className="text-muted-foreground mb-1 block font-mono text-xs">
+                                        {selectedChain.id === 'near' ? 'NEAR Refund Account' : 'Solana Refund Address'}
+                                    </label>
+                                    <input
+                                        type="text"
+                                        data-testid="refund-address-input"
+                                        value={refundAddress}
+                                        onChange={(e) => setRefundAddress(e.target.value)}
+                                        className="border-input bg-background text-foreground focus:border-ring min-h-11 w-full rounded-sm border px-3 py-2 font-mono text-xs transition"
+                                        placeholder={selectedChain.id === 'near' ? 'you.near' : 'Solana wallet address'}
+                                        required
+                                    />
+                                    <p className="text-muted-foreground mt-1 text-[11px]">
+                                        If the swap fails, the refund goes here. It must be an address you control on {selectedChain.name}.
+                                    </p>
+                                </div>
+                            )}
+
                             {error && (
                                 <div
                                     key={`step3-err-${errorCount}`}
@@ -685,7 +774,15 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                                     disabled={loading}
                                     className="bg-accent text-accent-foreground hover:bg-accent-deep mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold transition disabled:opacity-50"
                                 >
-                                    {loading ? <span>Preparing 1Click Quote...</span> : <span>Buy (${currentPrice.toFixed(2)} USD)</span>}
+                                    {loading ? (
+                                        <span>Preparing 1Click Quote...</span>
+                                    ) : (
+                                        <span>
+                                            {selectedChain.id === 'base'
+                                                ? `Buy (${currentPrice.toFixed(2)} USD)`
+                                                : `Get Deposit Address (${currentPrice.toFixed(2)} USD)`}
+                                        </span>
+                                    )}
                                 </button>
                             ) : (
                                 <button
@@ -719,7 +816,8 @@ export default function Checkout({ works, returnLicenseId }: Props) {
 
                             {!currentLicense ? (
                                 <div className="text-muted-foreground py-12 text-center font-mono text-xs leading-relaxed">
-                                    Connect wallet, select a manuscript, and click &ldquo;Buy&rdquo; to prepare your one-tap payment.
+                                    Select a manuscript, pick a chain, and click &ldquo;Buy&rdquo; to get a quote — one-tap payment on Base, a
+                                    deposit address on other chains.
                                 </div>
                             ) : (
                                 <div className="mt-4 space-y-5">
@@ -746,14 +844,23 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                                                     data-testid="quoted-amount-display"
                                                     className="text-foreground mt-1 font-mono text-sm font-bold tabular-nums"
                                                 >
-                                                    {quotedAmountFormatted} USDC
+                                                    {quotedAmountFormatted} {licenseChain.symbol}
                                                 </div>
                                             </div>
                                         )}
                                     </div>
 
-                                    {/* Primary Seamless One-Tap Pay Action */}
-                                    {currentLicense.status !== 'settled' && currentLicense.deposit_address && (
+                                    {currentLicense.status === 'failed' && currentLicense.error_message && (
+                                        <div className="border-destructive bg-destructive/10 text-foreground rounded-sm border p-2.5 text-xs">
+                                            {currentLicense.error_message}
+                                        </div>
+                                    )}
+
+                                    {/* Primary Seamless One-Tap Pay Action (Base only) */}
+                                    {currentLicense.status !== 'settled' &&
+                                        currentLicense.status !== 'failed' &&
+                                        currentLicense.deposit_address &&
+                                        currentLicense.deposit_chain === 'base' && (
                                         <div className="space-y-2.5">
                                             <button
                                                 type="button"
@@ -812,6 +919,50 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* Deposit-address flow (NEAR, Solana, Arbitrum): send the exact quoted amount from any wallet on the origin chain. */}
+                                    {currentLicense.status !== 'settled' &&
+                                        currentLicense.status !== 'failed' &&
+                                        currentLicense.deposit_address &&
+                                        currentLicense.deposit_chain !== 'base' && (
+                                            <div className="space-y-2.5">
+                                                <div>
+                                                    <span className="text-muted-foreground font-mono text-[11px] tracking-[0.08em] uppercase">
+                                                        1Click Deposit Address ({licenseChain.name})
+                                                    </span>
+                                                    <div className="border-border bg-background mt-1 flex items-center gap-1.5 rounded-sm border p-2.5">
+                                                        <span
+                                                            data-testid="deposit-address-display"
+                                                            className="text-foreground font-mono text-xs break-all select-all"
+                                                        >
+                                                            {currentLicense.deposit_address}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={copyDepositAddress}
+                                                            className="border-border bg-card text-foreground hover:border-input inline-flex min-h-11 shrink-0 items-center rounded-full border px-3 text-[10px] transition"
+                                                            title="Copy deposit address"
+                                                        >
+                                                            {copied ? 'Copied' : 'Copy'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {quotedAmountFormatted && (
+                                                    <div className="border-border bg-background text-foreground rounded-sm border p-2.5 font-mono text-[11px] leading-relaxed">
+                                                        Send exactly {quotedAmountFormatted} {licenseChain.symbol} to the deposit address
+                                                        from any {licenseChain.name} wallet.
+                                                        {quoteDeadlineLabel && <> Quote valid until {quoteDeadlineLabel}.</>}
+                                                    </div>
+                                                )}
+
+                                                <p className="text-muted-foreground text-[11px] leading-relaxed">
+                                                    The watcher polls automatically — this page updates when the deposit lands, and the license
+                                                    records on Base after settlement. You can also look the license up later by deposit address or
+                                                    transaction hash.
+                                                </p>
+                                            </div>
+                                        )}
 
                                     <FactPanel
                                         className="border-border border-t pt-4"

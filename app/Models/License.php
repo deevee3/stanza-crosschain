@@ -13,6 +13,7 @@ class License extends Model
     protected $fillable = [
         'work_id',
         'buyer_address',
+        'refund_address',
         'tier',
         'price_usd',
         'payment_method',

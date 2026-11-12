@@ -29,12 +29,25 @@ class CheckoutController extends Controller
      */
     public function createQuote(Request $request): JsonResponse
     {
+        // The refund address must live on the ORIGIN chain: 1Click refunds
+        // to refundType ORIGIN_CHAIN, and the live API rejects a refund
+        // address from another chain (verified 2026-11-12: Solana origin +
+        // EVM refundTo 400s "refundTo is not valid"; a NEAR refund to an
+        // EVM address would be lost funds even though the quote succeeds).
+        // buyer_address stays the EVM licensee recorded on Base.
+        $refundRules = match ($request->input('deposit_chain')) {
+            'near' => ['required', 'string', 'min:2', 'max:64', 'regex:/^([0-9a-f]{64}|[a-z0-9][a-z0-9_\-\.]*[a-z0-9])$/'],
+            'solana' => ['required', 'string', 'regex:/^[1-9A-HJ-NP-Za-km-z]{32,44}$/'],
+            default => ['nullable', 'string', 'regex:/^0x[a-fA-F0-9]{40}$/'],
+        };
+
         $validated = $request->validate([
             'work_id' => 'required|exists:works,id',
             'tier' => 'required|string|in:read,citation,commercial',
             'buyer_address' => ['required', 'string', 'regex:/^0x[a-fA-F0-9]{40}$/'],
+            'refund_address' => $refundRules,
             'deposit_asset' => 'required|string',
-            'deposit_chain' => 'required|string',
+            'deposit_chain' => 'required|string|in:base,near,solana,arbitrum',
         ]);
 
         $work = Work::findOrFail($validated['work_id']);
@@ -44,6 +57,9 @@ class CheckoutController extends Controller
         $license = License::create([
             'work_id' => $work->id,
             'buyer_address' => $validated['buyer_address'],
+            // EVM origins refund to the buyer address; NEAR/Solana refund
+            // to the origin-chain address the buyer supplied.
+            'refund_address' => $validated['refund_address'] ?? $validated['buyer_address'],
             'tier' => $tier,
             'price_usd' => $price,
             'deposit_asset' => $validated['deposit_asset'],
