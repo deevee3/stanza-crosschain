@@ -3,7 +3,7 @@
 > **Live:** https://crosschain.spinwave.tech
 > **NEAR Beyond Boundaries Hackathon 2026**
 > **Tracks:** Real World, Autonomous Agents, Business, Open
-> **Status (Nov 12, 2026):** Live and settled. License #17 recorded on Base mainnet. `php artisan test` 81/81 green (365 assertions), `forge test` 4/4 green, `npm run build` clean.
+> **Status (Nov 12, 2026):** Live and settled. License #17 recorded on Base mainnet. `php artisan test` 81/81 green (365 assertions; 79/81 when a live `ONECLICK_JWT` is set in `.env` — see Step 4), `forge test` 4/4 green, `npm run build` clean.
 
 ---
 
@@ -191,6 +191,7 @@ php artisan test
 ```
 Tests:    81 passed (365 assertions)
 ```
+*(Note: If a live `ONECLICK_JWT` is set in `.env`, `php artisan test` reports `79 passed, 2 failed (362 assertions)` because 2 unit-mock tests in `ChainPickerTest` dispatch `WatchSettlement` against the container's live `OneClickService` with `0xfakedeposit`; run `ONECLICK_JWT="" php artisan test` for `81/81` when `.env` is populated with live credentials.)*
 
 Suite breakdown — Unit (15): `EthereumSignatureServiceTest` (6), `MpcSettlementServiceTest` (3), `WorkTest` (5), `ExampleTest` (1). Feature (66): `ChainPickerTest` (19), `CheckoutTest` (5), `OneClickAgentTest` (5), `PayPalCheckoutTest` (11), `ScholarNotificationTest` (8), `ScholarTest` (3), `WorkUploadTest` (15).
 
@@ -260,7 +261,7 @@ php artisan queue:work --tries=0
 The live deployment runs the same stack on port 8003 behind a Cloudflare Tunnel at https://crosschain.spinwave.tech, with the queue worker as a supervised service.
 
 #### Routes & demo script
-- **Checkout (`Connect Wallet` → `Buy` → `Pay`):** `http://127.0.0.1:8005/` (or `http://127.0.0.1:8005/checkout`)
+- **Checkout (`Connect Wallet` → `Buy` / `Get Deposit Address` → `Pay`):** `http://127.0.0.1:8005/` (or `http://127.0.0.1:8005/checkout`)
 - **License Lookup:** `http://127.0.0.1:8005/lookup`
 - **Work Page:** `http://127.0.0.1:8005/work/{slug}` (tier terms + content fingerprint)
 - **Scholar Portfolio:** `http://127.0.0.1:8005/scholar/0x2c432c901d5844431b027dd652fbfd3cc3dd6094` (all 3 catalog works and their licenses)

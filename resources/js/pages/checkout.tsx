@@ -870,8 +870,8 @@ export default function Checkout({ works, returnLicenseId }: Props) {
 
                             {!currentLicense ? (
                                 <div className="text-muted-foreground py-12 text-center font-mono text-xs leading-relaxed">
-                                    Select a manuscript, pick a chain, and click &ldquo;Buy&rdquo; to get a quote — one-tap payment on Base, a deposit
-                                    address on other chains.
+                                    Select a manuscript, pick a chain, and click &ldquo;Buy&rdquo; or &ldquo;Get Deposit Address&rdquo; to get a quote
+                                    — one-tap payment on Base, a deposit address on other chains.
                                 </div>
                             ) : (
                                 <div className="mt-4 space-y-5">
