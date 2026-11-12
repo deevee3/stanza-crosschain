@@ -1,7 +1,7 @@
 # PayPal AI Hackathon — submission draft (DO NOT SUBMIT — D'Vaughn's click)
 
 **Deadline:** Thursday Nov 12, 2026, 12:00 PM PT (3:00 PM ET), on Devpost.
-**Branch:** `paypal-slice` (NEAR submission on `main` is untouched).
+**Branch:** `main` (PayPal slice merged Nov 12; NEAR submission path intact on the same line).
 **Repo:** https://github.com/deevee3/stanza-crosschain (public, MIT — `LICENSE` file added Nov 9)
 **Contract (Base mainnet):** `0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00`
 ([BaseScan](https://basescan.org/address/0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00))
@@ -31,7 +31,8 @@ makes the trust model explicit:
    HOLDS the funds. Nothing is captured yet.
 3. The licensing agent runs its attestation review: deterministic gates
    (work active, tier price matches the catalog, authorized amount matches
-   the tier price exactly, buyer address valid, no replay for this order)
+   the tier price exactly, buyer email present with a valid on-chain buyer
+   address, no replay for this order)
    plus, when configured, an LLM review of the manuscript record against
    the license terms. The verdict is stored on the license and shown in the
    UI.
@@ -103,8 +104,8 @@ Screen recording, live app + PayPal Sandbox. Total target 2:30.
   attestation agent checks the license before a cent moves. Then the
   license is recorded on Base." Show the checkout page, PayPal toggle.
 - **Beat 2 (0:20–0:50) — Pick a license.** Open the Quadratic Funding
-  replication manuscript. Pick the $1 read tier. Enter the buyer EVM
-  address. "Same catalog, same tiers as the crypto checkout — a second
+  replication manuscript. Pick the $1 read tier. Enter your email — no
+  wallet needed on the PayPal rail. "Same catalog, same tiers as the crypto checkout — a second
   rail, not a second product."
 - **Beat 3 (0:50–1:30) — PayPal hold.** Click "Continue with PayPal".
   Approve in the PayPal Sandbox (buyer test account). Come back: status
@@ -148,7 +149,8 @@ A reader picks a manuscript and a license tier — read $1, citation $25,
 commercial $150 — and pays with PayPal. PayPal holds the money; nothing is
 captured yet. An AI attestation agent checks the license: is the work real,
 does the tier price match the catalog, does the authorized amount match the
-price exactly, is the buyer address valid. If the check passes, the payment
+price exactly, is the buyer record valid (email present, on-chain buyer
+address valid). If the check passes, the payment
 is released to the scholar and the license is recorded on Base, a public
 ledger. If it fails, the hold is voided and the buyer is never charged.
 
@@ -202,7 +204,7 @@ already have.
 
 ## Steps only D'Vaughn can do
 
-1. **PayPal Developer sandbox credentials** (if not already created):
+1. **PayPal Developer sandbox credentials** — DONE, verified present in the demo worktree `.env` Nov 12 (presence/length check only):
    developer.paypal.com → Dashboard → My Apps & Credentials → Sandbox →
    Create App. Put the sandbox Client ID + Secret in the iMac app `.env`
    as `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` (never in the repo).
@@ -210,7 +212,7 @@ already have.
 2. **Devpost registration:** join the PayPal AI Hackathon on Devpost
    (paypalaihackathon.devpost.com) with his account, create the submission,
    paste the text above, link the repo
-   (https://github.com/deevee3/stanza-crosschain, branch `paypal-slice`),
+   (https://github.com/deevee3/stanza-crosschain, branch `main`),
    add the demo video link.
 3. **AI key (optional but recommended):** set `AI_API_KEY` in the iMac app
    `.env` so the demo shows the LLM attestation review live. Without it

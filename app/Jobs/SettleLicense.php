@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\License;
 use App\Services\MpcSettlementService;
 use App\Services\OneClickService;
+use App\Services\ScholarNotificationService;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -108,5 +109,9 @@ class SettleLicense implements ShouldQueue
             'tier' => $this->license->tier,
             'scholar' => $work->scholar_address,
         ]);
+
+        // The sale is recorded; tell the scholar. Notification failure
+        // never fails the settlement — the service logs and returns false.
+        app(ScholarNotificationService::class)->notify($this->license);
     }
 }

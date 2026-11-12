@@ -381,4 +381,30 @@ class ChainPickerTest extends TestCase
         $this->assertEquals('failed', $license->status);
         $this->assertStringContainsString('refundTo is not valid', $license->error_message);
     }
+
+    public function test_exclusive_quote_uses_catalog_default_when_work_has_no_exclusive_price(): void
+    {
+        $response = $this->postJson('/api/quote', $this->quotePayload(['tier' => 'exclusive']));
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('licenses', [
+            'work_id' => $this->work->id,
+            'tier' => 'exclusive',
+            'price_usd' => 500.00,
+        ]);
+    }
+
+    public function test_exclusive_quote_uses_stored_price_when_present(): void
+    {
+        $this->work->update(['tiers' => array_merge($this->work->tiers, ['exclusive' => 900.00])]);
+
+        $response = $this->postJson('/api/quote', $this->quotePayload(['tier' => 'exclusive']));
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('licenses', [
+            'work_id' => $this->work->id,
+            'tier' => 'exclusive',
+            'price_usd' => 900.00,
+        ]);
+    }
 }

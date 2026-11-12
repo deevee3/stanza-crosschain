@@ -30,7 +30,7 @@ class MpcSettlementService
 
     /**
      * Check if a proofHash is already settled on-chain on LicenseRegistry.
-     * Function selector for settled(bytes32): keccak256("settled(bytes32)")[0..4] = 0x27670732
+     * Function selector for settled(bytes32): keccak256("settled(bytes32)")[0..4] = 0xd945af1d
      */
     public function isSettledOnChain(string $proofHash): bool
     {
@@ -38,8 +38,8 @@ class MpcSettlementService
             return false;
         }
 
-        // settled(bytes32) selector is keccak256("settled(bytes32)")[:4] -> 0x27670732
-        $selector = '0x27670732';
+        // settled(bytes32) selector is keccak256("settled(bytes32)")[:4] -> 0xd945af1d
+        $selector = '0xd945af1d';
         $cleanHash = ltrim(str_replace('0x', '', $proofHash), '');
         $data = $selector . str_pad($cleanHash, 64, '0', STR_PAD_LEFT);
 
@@ -75,11 +75,11 @@ class MpcSettlementService
     /**
      * Encode recordLicense call data:
      * recordLicense(address buyer, bytes32 workId, string tier, bytes32 proofHash)
-     * Selector: keccak256("recordLicense(address,bytes32,string,bytes32)") = 0x48967ddc
+     * Selector: keccak256("recordLicense(address,bytes32,string,bytes32)") = 0x5c2b9e85
      */
     public function encodeRecordLicenseCall(string $buyer, string $workId, string $tier, string $proofHash): string
     {
-        $selector = '0x48967ddc';
+        $selector = '0x5c2b9e85';
 
         $cleanBuyer = str_pad(ltrim(strtolower(str_replace('0x', '', $buyer)), ''), 64, '0', STR_PAD_LEFT);
         $cleanWorkId = str_pad(str_replace('0x', '', $workId), 64, '0', STR_PAD_RIGHT);
@@ -125,7 +125,13 @@ class MpcSettlementService
         }
 
         $scriptPath = base_path('scripts/mpc-settle.cjs');
-        $nodeBinary = trim(shell_exec('which node') ?: 'node');
+        // The PHP container has no node on PATH; environments pin the host
+        // node binary (mounted into the container under /home/housedv) via
+        // NODE_BINARY. Fall back to `which node` when unset.
+        $nodeBinary = (string) (config('services.node.binary', env('NODE_BINARY')) ?: trim((string) shell_exec('which node')));
+        if ($nodeBinary === '') {
+            $nodeBinary = 'node';
+        }
 
         $command = [
             $nodeBinary,
@@ -157,11 +163,27 @@ class MpcSettlementService
             throw new Exception("Live MPC settlement failed: {$error}");
         }
 
-        $output = json_decode(trim($process->getOutput()), true);
+        $output = self::parseSettlementOutput($process->getOutput());
         if (!$output || empty($output['txHash'])) {
             throw new Exception("Live MPC settlement returned invalid output: " . $process->getOutput());
         }
 
         return $output;
+    }
+
+    /**
+     * Parse the settle script's stdout. near-api-js prints transaction
+     * receipts and signer logs to stdout before the script's JSON result,
+     * so the JSON object is extracted from the END of the output instead
+     * of decoding the whole stream. Returns null when no valid JSON
+     * object is present.
+     */
+    public static function parseSettlementOutput(string $rawOutput): ?array
+    {
+        $jsonPos = strrpos($rawOutput, '{"status"');
+        $candidate = $jsonPos !== false ? substr($rawOutput, $jsonPos) : trim($rawOutput);
+        $decoded = json_decode(trim($candidate), true);
+
+        return is_array($decoded) ? $decoded : null;
     }
 }

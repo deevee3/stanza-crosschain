@@ -22,7 +22,7 @@
   .dark carries the warmed dark translation: neutral surfaces warmed
   (hue ~30-45, saturation 3-6%) so they read warm, never neutral-cold;
   cards a step lighter than the background; paper-toned warm near-white
-  text; the vivid orange accent kept recognizable at 55% lightness.
+  text; the Reynard burnt-sienna accent kept recognizable in both.
   Never pure black anywhere: the darkest surface is 8% lightness.
 */
 
@@ -158,13 +158,14 @@
 :root {
     color-scheme: light;
 
-    /* Brand — warm ink + one accent */
+    /* Brand — warm ink + Reynard burnt sienna #E97451 (hsl 14, 78%, 62%),
+       the one accent. Deep/soft variants are the same hue, stepped. */
     --primary: hsl(25, 22%, 9%);
     --primary-foreground: hsl(46, 50%, 96%);
-    --accent: hsl(22, 100%, 50%);
+    --accent: hsl(14, 78%, 62%);
     --accent-foreground: hsl(0, 0%, 7%);
-    --accent-deep: hsl(22, 100%, 45%);
-    --accent-soft: hsl(22, 100%, 95%);
+    --accent-deep: hsl(14, 78%, 52%);
+    --accent-soft: hsl(14, 78%, 94%);
     --secondary: hsl(42, 25%, 86%);
     --secondary-foreground: hsl(25, 22%, 9%);
 
@@ -192,11 +193,11 @@
     /* Lines + focus */
     --border: hsl(41, 28%, 79%);
     --input: hsl(40, 20%, 72%);
-    --ring: hsl(22, 100%, 50%);
+    --ring: hsl(14, 78%, 52%);
 
     /* Charts (categorical) */
     --chart-1: hsl(25, 22%, 9%);
-    --chart-2: hsl(22, 100%, 50%);
+    --chart-2: hsl(14, 78%, 62%);
     --chart-3: hsl(96, 52%, 45%);
     --chart-4: hsl(35, 10%, 55%);
     --chart-5: hsl(42, 76%, 45%);
@@ -209,7 +210,7 @@
     --sidebar-accent: hsl(42, 25%, 86%);
     --sidebar-accent-foreground: hsl(25, 22%, 9%);
     --sidebar-border: hsl(41, 28%, 79%);
-    --sidebar-ring: hsl(22, 100%, 50%);
+    --sidebar-ring: hsl(14, 78%, 52%);
 }
 
 .dark {
@@ -220,10 +221,10 @@
        the background; warm near-white text. Never pure black. */
     --primary: hsl(40, 6%, 95%);
     --primary-foreground: hsl(36, 5%, 8%);
-    --accent: hsl(22, 100%, 55%);
+    --accent: hsl(14, 78%, 62%);
     --accent-foreground: hsl(0, 0%, 7%);
-    --accent-deep: hsl(22, 100%, 45%);
-    --accent-soft: hsl(22, 45%, 15%);
+    --accent-deep: hsl(14, 78%, 52%);
+    --accent-soft: hsl(14, 45%, 16%);
     --secondary: hsl(33, 4%, 17%);
     --secondary-foreground: hsl(40, 6%, 95%);
 
@@ -248,10 +249,10 @@
 
     --border: hsl(32, 4%, 20%);
     --input: hsl(32, 4%, 26%);
-    --ring: hsl(22, 100%, 55%);
+    --ring: hsl(14, 78%, 62%);
 
     --chart-1: hsl(40, 6%, 95%);
-    --chart-2: hsl(22, 100%, 55%);
+    --chart-2: hsl(14, 78%, 62%);
     --chart-3: hsl(96, 52%, 50%);
     --chart-4: hsl(36, 4%, 60%);
     --chart-5: hsl(42, 76%, 50%);
@@ -263,7 +264,7 @@
     --sidebar-accent: hsl(33, 4%, 17%);
     --sidebar-accent-foreground: hsl(40, 6%, 95%);
     --sidebar-border: hsl(32, 4%, 20%);
-    --sidebar-ring: hsl(22, 100%, 55%);
+    --sidebar-ring: hsl(14, 78%, 62%);
 }
 
 @layer base {

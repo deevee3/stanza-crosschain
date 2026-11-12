@@ -53,7 +53,7 @@ Implement the production path, no stubs, no simulated hashes:
 
 1. Build the unsigned EIP-1559 `recordLicense(buyer, workId, tier, proofHash)`
    transaction for the deployed registry (use the existing
-   `encodeRecordLicenseCall`; selector `0x48967ddc`).
+   `encodeRecordLicenseCall`; selector `0x5c2b9e85`).
 2. Hash the payload (keccak256 of the EIP-1559 signing payload) and call the
    NEAR Chain Signatures contract `sign` (`v1.signer`, mainnet). Verified
    2026-11-07 against the contract API: `sign(request)` takes

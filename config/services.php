@@ -28,6 +28,12 @@ return [
         'key' => env('RESEND_KEY'),
     ],
 
+    'stanza' => [
+        // Fallback recipient for scholar sale notifications when a work
+        // has no scholar_email on file (the seeded catalog).
+        'notify_email' => env('STANZA_NOTIFY_EMAIL'),
+    ],
+
     'paypal' => [
         'mode' => env('PAYPAL_MODE', 'sandbox'),
         'client_id' => env('PAYPAL_CLIENT_ID'),

@@ -43,7 +43,7 @@ class CheckoutController extends Controller
 
         $validated = $request->validate([
             'work_id' => 'required|exists:works,id',
-            'tier' => 'required|string|in:read,citation,commercial',
+            'tier' => 'required|string|in:read,citation,commercial,exclusive',
             'buyer_address' => ['required', 'string', 'regex:/^0x[a-fA-F0-9]{40}$/'],
             'refund_address' => $refundRules,
             'deposit_asset' => 'required|string',
@@ -52,7 +52,7 @@ class CheckoutController extends Controller
 
         $work = Work::findOrFail($validated['work_id']);
         $tier = $validated['tier'];
-        $price = $work->tiers[$tier] ?? 5.00;
+        $price = $work->tierPrice($tier);
 
         $license = License::create([
             'work_id' => $work->id,

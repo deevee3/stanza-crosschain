@@ -24,6 +24,7 @@ interface Work {
     scholar_address: string;
     description: string;
     tiers: Record<string, number>;
+    terms?: Record<string, string> | null;
 }
 
 interface QuotePayload {
@@ -50,6 +51,7 @@ interface License {
     id: number;
     work_id: number;
     buyer_address: string;
+    buyer_email?: string | null;
     refund_address?: string | null;
     tier: string;
     price_usd: number;
@@ -95,6 +97,26 @@ const DEPOSIT_CHAINS = [
 
 const chainById = (id: string | null | undefined) => DEPOSIT_CHAINS.find((c) => c.id === id) ?? DEPOSIT_CHAINS[0];
 
+// Catalog tier defaults (USD) and default terms. These MUST match
+// App\Models\Work::TIER_DEFAULTS / DEFAULT_TERMS — the backend is
+// authoritative at quote time; these keep the UI honest when a work has
+// no price or terms stored for a tier.
+const TIER_KEYS = ['read', 'citation', 'commercial', 'exclusive'];
+
+const TIER_DEFAULTS: Record<string, number> = {
+    read: 10,
+    citation: 25,
+    commercial: 150,
+    exclusive: 500,
+};
+
+const DEFAULT_TERMS: Record<string, string> = {
+    read: 'Read the full work for personal, non-commercial use. No redistribution.',
+    citation: 'Cite the work with attribution in your own publications. No redistribution of the full text.',
+    commercial: 'Reuse the work commercially with attribution. No resale of the work itself.',
+    exclusive: 'Exclusive license: sole commercial reuse rights for the term agreed with the scholar.',
+};
+
 export default function Checkout({ works, returnLicenseId }: Props) {
     const [selectedWorkId, setSelectedWorkId] = useState<number>(works[0]?.id || 1);
     const [selectedTier, setSelectedTier] = useState<string>('read');
@@ -104,6 +126,7 @@ export default function Checkout({ works, returnLicenseId }: Props) {
     const [connectingWallet, setConnectingWallet] = useState<boolean>(false);
     const [paymentMethod, setPaymentMethod] = useState<'oneclick' | 'paypal'>('oneclick');
     const [buyerAddress, setBuyerAddress] = useState<string>('');
+    const [buyerEmail, setBuyerEmail] = useState<string>('');
     const [refundAddress, setRefundAddress] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
     const [paying, setPaying] = useState<boolean>(false);
@@ -127,7 +150,8 @@ export default function Checkout({ works, returnLicenseId }: Props) {
     }, [returnLicenseId]);
 
     const activeWork = works.find((w) => w.id === selectedWorkId) || works[0];
-    const currentPrice = Number(activeWork?.tiers[selectedTier] ?? 1.0);
+    const currentPrice = Number(activeWork?.tiers[selectedTier] ?? TIER_DEFAULTS[selectedTier] ?? TIER_DEFAULTS.read);
+    const currentTerms = activeWork?.terms?.[selectedTier] ?? DEFAULT_TERMS[selectedTier] ?? DEFAULT_TERMS.read;
 
     // Check if wallet is already connected on mount
     useEffect(() => {
@@ -386,6 +410,11 @@ export default function Checkout({ works, returnLicenseId }: Props) {
         setError(null);
 
         try {
+            const email = buyerEmail.trim();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                throw new Error('Enter a valid email address for the PayPal license.');
+            }
+
             const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content;
 
             const res = await fetch('/api/paypal/order', {
@@ -398,7 +427,12 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                 body: JSON.stringify({
                     work_id: activeWork.id,
                     tier: selectedTier,
-                    buyer_address: buyerAddress,
+                    buyer_email: email,
+                    // A connected wallet's address is used when present so
+                    // the on-chain record keys to a wallet the buyer
+                    // controls; otherwise the server derives one from the
+                    // email. A wallet is never required for PayPal.
+                    buyer_address: walletAddress || undefined,
                 }),
             });
 
@@ -577,9 +611,9 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                             <label className="text-muted-foreground mb-3 block font-mono text-xs font-semibold tracking-[0.08em] uppercase">
                                 2. Select License Tier
                             </label>
-                            <div className="grid grid-cols-3 gap-3">
-                                {['read', 'citation', 'commercial'].map((tierKey) => {
-                                    const price = Number(activeWork?.tiers[tierKey] ?? 0);
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                {TIER_KEYS.map((tierKey) => {
+                                    const price = Number(activeWork?.tiers[tierKey] ?? TIER_DEFAULTS[tierKey] ?? 0);
                                     const isSelected = selectedTier === tierKey;
                                     return (
                                         <button
@@ -604,6 +638,10 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                                     );
                                 })}
                             </div>
+                            <p className="text-muted-foreground mt-3 text-xs leading-relaxed">
+                                <span className="text-foreground font-medium capitalize">{selectedTier} terms: </span>
+                                {currentTerms}
+                            </p>
                         </div>
 
                         {/* Step 3: Wallet & One-Tap Buy */}
@@ -734,38 +772,56 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                                 </div>
                             )}
 
-                            <div>
-                                <div className="mb-1 flex items-center justify-between">
-                                    <label className="text-muted-foreground block font-mono text-xs">Buyer EVM Address (Licensee)</label>
-                                    {walletAddress && (
-                                        <span className="text-foreground inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold">
-                                            <span className="bg-success h-1.5 w-1.5 rounded-full" />
-                                            Connected & Locked
-                                        </span>
-                                    )}
+                            {paymentMethod === 'oneclick' ? (
+                                <div>
+                                    <div className="mb-1 flex items-center justify-between">
+                                        <label className="text-muted-foreground block font-mono text-xs">Buyer EVM Address (Licensee)</label>
+                                        {walletAddress && (
+                                            <span className="text-foreground inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold">
+                                                <span className="bg-success h-1.5 w-1.5 rounded-full" />
+                                                Connected & Locked
+                                            </span>
+                                        )}
+                                    </div>
+                                    <input
+                                        type="text"
+                                        data-testid="buyer-address-input"
+                                        value={buyerAddress}
+                                        readOnly={Boolean(walletAddress)}
+                                        onChange={(e) => {
+                                            if (!walletAddress) {
+                                                setBuyerAddress(e.target.value);
+                                            }
+                                        }}
+                                        className={`min-h-11 w-full rounded-sm border px-3 py-2 font-mono text-xs transition ${
+                                            walletAddress
+                                                ? 'border-accent/40 bg-muted text-muted-foreground cursor-not-allowed'
+                                                : 'border-input bg-background text-foreground focus:border-ring'
+                                        }`}
+                                        placeholder="Connect wallet to auto-fill (0x...)"
+                                        required
+                                    />
+                                    <p className="text-muted-foreground mt-1 text-[11px]">
+                                        The address recorded as the verified buyer on Base LicenseRegistry.
+                                    </p>
                                 </div>
-                                <input
-                                    type="text"
-                                    data-testid="buyer-address-input"
-                                    value={buyerAddress}
-                                    readOnly={Boolean(walletAddress)}
-                                    onChange={(e) => {
-                                        if (!walletAddress) {
-                                            setBuyerAddress(e.target.value);
-                                        }
-                                    }}
-                                    className={`min-h-11 w-full rounded-sm border px-3 py-2 font-mono text-xs transition ${
-                                        walletAddress
-                                            ? 'border-accent/40 bg-muted text-muted-foreground cursor-not-allowed'
-                                            : 'border-input bg-background text-foreground focus:border-ring'
-                                    }`}
-                                    placeholder="Connect wallet to auto-fill (0x...)"
-                                    required
-                                />
-                                <p className="text-muted-foreground mt-1 text-[11px]">
-                                    The address recorded as the verified buyer on Base LicenseRegistry.
-                                </p>
-                            </div>
+                            ) : (
+                                <div>
+                                    <label className="text-muted-foreground mb-1 block font-mono text-xs">Email (Licensee)</label>
+                                    <input
+                                        type="email"
+                                        data-testid="buyer-email-input"
+                                        value={buyerEmail}
+                                        onChange={(e) => setBuyerEmail(e.target.value)}
+                                        className="border-input bg-background text-foreground focus:border-ring min-h-11 w-full rounded-sm border px-3 py-2 font-mono text-xs transition"
+                                        placeholder="you@example.com"
+                                        required
+                                    />
+                                    <p className="text-muted-foreground mt-1 text-[11px]">
+                                        No wallet needed. Your license is recorded on Base under an address derived from this email.
+                                    </p>
+                                </div>
+                            )}
 
                             {paymentMethod === 'oneclick' ? (
                                 <button
