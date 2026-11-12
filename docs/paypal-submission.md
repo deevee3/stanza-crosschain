@@ -1,7 +1,7 @@
 # PayPal AI Hackathon — submission draft (DO NOT SUBMIT — D'Vaughn's click)
 
 **Deadline:** Thursday Nov 12, 2026, 12:00 PM PT (3:00 PM ET), on Devpost.
-**Branch:** `paypal-slice` (NEAR submission on `main` is untouched).
+**Branch:** `main` (PayPal slice merged Nov 12; NEAR submission path intact on the same line).
 **Repo:** https://github.com/deevee3/stanza-crosschain (public, MIT — `LICENSE` file added Nov 9)
 **Contract (Base mainnet):** `0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00`
 ([BaseScan](https://basescan.org/address/0x3407bBf34488AC73B85B7f32463b1913Fcf9eA00))
@@ -202,7 +202,7 @@ already have.
 
 ## Steps only D'Vaughn can do
 
-1. **PayPal Developer sandbox credentials** (if not already created):
+1. **PayPal Developer sandbox credentials** — DONE, verified present in the demo worktree `.env` Nov 12 (presence/length check only):
    developer.paypal.com → Dashboard → My Apps & Credentials → Sandbox →
    Create App. Put the sandbox Client ID + Secret in the iMac app `.env`
    as `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` (never in the repo).
@@ -210,7 +210,7 @@ already have.
 2. **Devpost registration:** join the PayPal AI Hackathon on Devpost
    (paypalaihackathon.devpost.com) with his account, create the submission,
    paste the text above, link the repo
-   (https://github.com/deevee3/stanza-crosschain, branch `paypal-slice`),
+   (https://github.com/deevee3/stanza-crosschain, branch `main`),
    add the demo video link.
 3. **AI key (optional but recommended):** set `AI_API_KEY` in the iMac app
    `.env` so the demo shows the LLM attestation review live. Without it
