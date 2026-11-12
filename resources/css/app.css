@@ -6,13 +6,79 @@
 
 @custom-variant dark (&:is(.dark *));
 
-@theme {
-    --font-sans:
-        'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+/*
+  Stanza Cross-Chain — Carbon Arc design language, translated from the
+  Shortages & Shifts ?v=4 rebuild (drug-tracker/site/styles.css) and the
+  healthcare-dashboard-design-system.md token set (§4).
 
-    --radius-lg: var(--radius);
-    --radius-md: calc(var(--radius) - 2px);
-    --radius-sm: calc(var(--radius) - 4px);
+  Token convention in this file differs from the tracker: each custom
+  property holds a COMPLETE hsl() color (the Laravel starter-kit
+  convention), and @theme maps --color-* to var(--*) directly. Custom CSS
+  below therefore uses var(--token) as a whole color, never
+  hsl(var(--token)).
+
+  Light :root carries the Carbon Arc light tokens verbatim. .dark carries
+  the warmed dark translation: neutral surfaces warmed (hue ~30-45,
+  saturation 3-6%) so they read warm, never neutral-cold; cards a step
+  lighter than the background; paper-toned warm near-white text; the
+  vivid orange accent kept recognizable at 55% lightness. Never pure
+  black anywhere: the darkest surface is 8% lightness.
+*/
+
+/* Grotesque + dot-matrix display faces, self-hosted, latin subset
+   (OFL via Fontsource). The dot face is hero numerals only. See
+   resources/fonts/FONTS.md for the attribution note. */
+@font-face {
+    font-family: 'Inter';
+    src: url('../fonts/inter-latin-400-normal.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Inter';
+    src: url('../fonts/inter-latin-600-normal.woff2') format('woff2');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Inter';
+    src: url('../fonts/inter-latin-800-normal.woff2') format('woff2');
+    font-weight: 800;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'DotGothic16';
+    src: url('../fonts/dotgothic16-latin-400-normal.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@theme {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --font-dot: 'DotGothic16', ui-monospace, monospace;
+
+    /* Shape — big radii, pills (design system §4). */
+    --radius-sm: 0.75rem;
+    --radius-md: 1.25rem;
+    --radius-lg: 1.5rem;
+    --radius-xl: 2rem;
+
+    /* Measure — content width shared by main, footer, and header pill. */
+    --max-width-measure: 60rem;
+
+    /* Effects — flat first, shadows subtle. */
+    --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.05);
+    --shadow-md: 0 8px 24px hsl(0 0% 0% / 0.08);
+    --shadow-lg: 0 16px 40px hsl(0 0% 0% / 0.1);
+    --shadow-glow: 0 0 40px color-mix(in hsl, var(--accent) 25%, transparent);
 
     --color-background: var(--background);
     --color-foreground: var(--foreground);
@@ -34,9 +100,21 @@
 
     --color-accent: var(--accent);
     --color-accent-foreground: var(--accent-foreground);
+    --color-accent-deep: var(--accent-deep);
+    --color-accent-soft: var(--accent-soft);
+
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-success-bright: var(--success-bright);
+
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
 
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
+
+    --color-info: var(--info);
+    --color-info-foreground: var(--info-foreground);
 
     --color-border: var(--border);
     --color-input: var(--input);
@@ -77,74 +155,114 @@
 }
 
 :root {
-    --background: hsl(0, 0%, 100%);
-    --foreground: hsl(0, 0%, 3.9%);
+    color-scheme: light;
+
+    /* Brand — monochrome + one accent */
+    --primary: hsl(0, 0%, 7%);
+    --primary-foreground: hsl(0, 0%, 100%);
+    --accent: hsl(22, 100%, 50%);
+    --accent-foreground: hsl(0, 0%, 7%);
+    --accent-deep: hsl(22, 100%, 45%);
+    --accent-soft: hsl(22, 100%, 95%);
+    --secondary: hsl(0, 0%, 92%);
+    --secondary-foreground: hsl(0, 0%, 7%);
+
+    /* Surfaces */
+    --background: hsl(60, 4%, 95%);
+    --foreground: hsl(0, 0%, 7%);
     --card: hsl(0, 0%, 100%);
-    --card-foreground: hsl(0, 0%, 3.9%);
+    --card-foreground: hsl(0, 0%, 7%);
     --popover: hsl(0, 0%, 100%);
-    --popover-foreground: hsl(0, 0%, 3.9%);
-    --primary: hsl(0, 0%, 9%);
-    --primary-foreground: hsl(0, 0%, 98%);
-    --secondary: hsl(0, 0%, 96.1%);
-    --secondary-foreground: hsl(0, 0%, 9%);
-    --muted: hsl(0, 0%, 96.1%);
-    --muted-foreground: hsl(0, 0%, 45.1%);
-    --accent: hsl(0, 0%, 96.1%);
-    --accent-foreground: hsl(0, 0%, 9%);
-    --destructive: hsl(0, 84.2%, 60.2%);
-    --destructive-foreground: hsl(0, 0%, 98%);
-    --border: hsl(0, 0%, 92.8%);
-    --input: hsl(0, 0%, 89.8%);
-    --ring: hsl(0, 0%, 3.9%);
-    --chart-1: hsl(12, 76%, 61%);
-    --chart-2: hsl(173, 58%, 39%);
-    --chart-3: hsl(197, 37%, 24%);
-    --chart-4: hsl(43, 74%, 66%);
-    --chart-5: hsl(27, 87%, 67%);
-    --radius: 0.5rem;
-    --sidebar-background: hsl(0, 0%, 98%);
-    --sidebar-foreground: hsl(240, 5.3%, 30%);
-    --sidebar-primary: hsl(0, 0%, 10%);
-    --sidebar-primary-foreground: hsl(0, 0%, 98%);
-    --sidebar-accent: hsl(0, 0%, 94%);
-    --sidebar-accent-foreground: hsl(0, 0%, 30%);
-    --sidebar-border: hsl(0, 0%, 91%);
-    --sidebar-ring: hsl(217.2, 91.2%, 59.8%);
+    --popover-foreground: hsl(0, 0%, 7%);
+    --muted: hsl(0, 0%, 92%);
+    --muted-foreground: hsl(0, 0%, 42%);
+
+    /* Functional */
+    --success: hsl(96, 52%, 45%);
+    --success-foreground: hsl(0, 0%, 7%);
+    --success-bright: hsl(96, 55%, 55%);
+    --warning: hsl(42, 76%, 42%);
+    --warning-foreground: hsl(30, 60%, 12%);
+    --destructive: hsl(4, 68%, 48%);
+    --destructive-foreground: hsl(0, 0%, 100%);
+    --info: hsl(0, 0%, 7%);
+    --info-foreground: hsl(0, 0%, 100%);
+
+    /* Lines + focus */
+    --border: hsl(0, 0%, 88%);
+    --input: hsl(0, 0%, 80%);
+    --ring: hsl(22, 100%, 50%);
+
+    /* Charts (categorical) */
+    --chart-1: hsl(0, 0%, 7%);
+    --chart-2: hsl(22, 100%, 50%);
+    --chart-3: hsl(96, 52%, 45%);
+    --chart-4: hsl(0, 0%, 55%);
+    --chart-5: hsl(42, 76%, 45%);
+
+    --radius: 1.5rem;
+    --sidebar-background: hsl(0, 0%, 100%);
+    --sidebar-foreground: hsl(0, 0%, 7%);
+    --sidebar-primary: hsl(0, 0%, 7%);
+    --sidebar-primary-foreground: hsl(0, 0%, 100%);
+    --sidebar-accent: hsl(0, 0%, 92%);
+    --sidebar-accent-foreground: hsl(0, 0%, 7%);
+    --sidebar-border: hsl(0, 0%, 88%);
+    --sidebar-ring: hsl(22, 100%, 50%);
 }
 
 .dark {
-    --background: hsl(0, 0%, 3.9%);
-    --foreground: hsl(0, 0%, 98%);
-    --card: hsl(0, 0%, 3.9%);
-    --card-foreground: hsl(0, 0%, 98%);
-    --popover: hsl(0, 0%, 3.9%);
-    --popover-foreground: hsl(0, 0%, 98%);
-    --primary: hsl(0, 0%, 98%);
-    --primary-foreground: hsl(0, 0%, 9%);
-    --secondary: hsl(0, 0%, 14.9%);
-    --secondary-foreground: hsl(0, 0%, 98%);
-    --muted: hsl(0, 0%, 6.9%);
-    --muted-foreground: hsl(0, 0%, 63.9%);
-    --accent: hsl(0, 0%, 14.9%);
-    --accent-foreground: hsl(0, 0%, 98%);
-    --destructive: hsl(0, 84%, 60%);
-    --destructive-foreground: hsl(0, 0%, 98%);
-    --border: hsl(0, 0%, 14.9%);
-    --input: hsl(0, 0%, 14.9%);
-    --ring: hsl(0, 0%, 83.1%);
-    --chart-1: hsl(220, 70%, 50%);
-    --chart-2: hsl(160, 60%, 45%);
-    --chart-3: hsl(30, 80%, 55%);
-    --chart-4: hsl(280, 65%, 60%);
-    --chart-5: hsl(340, 75%, 55%);
-    --sidebar-background: hsl(0, 0%, 7%);
-    --sidebar-foreground: hsl(0, 0%, 80%);
-    --sidebar-primary: hsl(360, 100%, 100%);
-    --sidebar-primary-foreground: hsl(0, 0%, 100%);
-    --sidebar-accent: hsl(0, 0%, 15.9%);
-    --sidebar-accent-foreground: hsl(240, 4.8%, 95.9%);
-    --sidebar-border: hsl(0, 0%, 15.9%);
-    --sidebar-ring: hsl(217.2, 91.2%, 59.8%);
+    color-scheme: dark;
+
+    /* Warmed dark translation of the Carbon Arc tokens: hue ~30-45,
+       saturation 3-6% on neutral surfaces; cards a step lighter than
+       the background; warm near-white text. Never pure black. */
+    --primary: hsl(40, 6%, 95%);
+    --primary-foreground: hsl(36, 5%, 8%);
+    --accent: hsl(22, 100%, 55%);
+    --accent-foreground: hsl(0, 0%, 7%);
+    --accent-deep: hsl(22, 100%, 45%);
+    --accent-soft: hsl(22, 45%, 15%);
+    --secondary: hsl(33, 4%, 17%);
+    --secondary-foreground: hsl(40, 6%, 95%);
+
+    --background: hsl(36, 5%, 8%);
+    --foreground: hsl(40, 6%, 95%);
+    --card: hsl(34, 5%, 12%);
+    --card-foreground: hsl(40, 6%, 95%);
+    --popover: hsl(34, 5%, 12%);
+    --popover-foreground: hsl(40, 6%, 95%);
+    --muted: hsl(33, 4%, 15%);
+    --muted-foreground: hsl(36, 4%, 68%);
+
+    --success: hsl(96, 52%, 50%);
+    --success-foreground: hsl(0, 0%, 7%);
+    --success-bright: hsl(96, 55%, 60%);
+    --warning: hsl(42, 76%, 50%);
+    --warning-foreground: hsl(30, 60%, 12%);
+    --destructive: hsl(4, 68%, 55%);
+    --destructive-foreground: hsl(0, 0%, 100%);
+    --info: hsl(40, 6%, 95%);
+    --info-foreground: hsl(36, 5%, 8%);
+
+    --border: hsl(32, 4%, 20%);
+    --input: hsl(32, 4%, 26%);
+    --ring: hsl(22, 100%, 55%);
+
+    --chart-1: hsl(40, 6%, 95%);
+    --chart-2: hsl(22, 100%, 55%);
+    --chart-3: hsl(96, 52%, 50%);
+    --chart-4: hsl(36, 4%, 60%);
+    --chart-5: hsl(42, 76%, 50%);
+
+    --sidebar-background: hsl(34, 5%, 12%);
+    --sidebar-foreground: hsl(40, 6%, 95%);
+    --sidebar-primary: hsl(40, 6%, 95%);
+    --sidebar-primary-foreground: hsl(36, 5%, 8%);
+    --sidebar-accent: hsl(33, 4%, 17%);
+    --sidebar-accent-foreground: hsl(40, 6%, 95%);
+    --sidebar-border: hsl(32, 4%, 20%);
+    --sidebar-ring: hsl(22, 100%, 55%);
 }
 
 @layer base {
@@ -152,7 +270,81 @@
         @apply border-border;
     }
 
+    html,
+    body {
+        /* clip (not hidden): hidden turns body into a scroll container,
+           which silently disables position:sticky on the header. hidden
+           stays as the fallback for browsers without clip support. */
+        overflow-x: hidden;
+        overflow-x: clip;
+        max-width: 100%;
+    }
+
+    html {
+        scroll-behavior: smooth;
+    }
+
     body {
         @apply bg-background text-foreground;
+    }
+
+    ::selection {
+        background: var(--accent);
+        color: var(--accent-foreground);
+    }
+
+    /* Visible orange focus rings on every interactive element. Surfaces
+       sitting on orange override the color with the ink/primary utility
+       (an orange ring would vanish on the orange fill). */
+    a:focus-visible,
+    button:focus-visible,
+    input:focus-visible,
+    [tabindex]:focus-visible {
+        outline: 3px solid var(--ring);
+        outline-offset: 2px;
+    }
+
+    /* Skip-link target: the tracker suppresses the ring on main itself;
+       the skip link is the visible affordance. */
+    main[tabindex='-1']:focus {
+        outline: none;
+    }
+}
+
+@layer components {
+    /* Skip link: visible only on keyboard focus. */
+    .skip-link {
+        position: absolute;
+        left: 1rem;
+        top: -4rem;
+        z-index: 40;
+        padding: 0.75rem 1rem;
+        border-radius: 9999px;
+        background: var(--primary);
+        color: var(--primary-foreground);
+        font-weight: 600;
+        text-decoration: none;
+        transition: top 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .skip-link:focus-visible {
+        top: 0.5rem;
+        color: var(--primary-foreground);
+    }
+}
+
+/* Reduced motion: no animation carries information, so all of it
+   collapses to instant under this preference. */
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
     }
 }

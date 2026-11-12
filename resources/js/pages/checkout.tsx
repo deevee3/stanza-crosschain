@@ -13,6 +13,8 @@ import {
 import { Head, Link } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { formatUnits } from 'viem';
+import FactPanel from '../components/public/fact-panel';
+import PublicShell from '../components/public/public-shell';
 
 interface Work {
     id: number;
@@ -338,458 +340,421 @@ export default function Checkout({ works }: Props) {
     const quotedAmountInRaw = currentLicense?.quote_payload?.amountIn ?? null;
     const quotedAmountFormatted =
         currentLicense?.quote_payload?.amountInFormatted ??
-        (quotedAmountInRaw && /^\d+$/.test(quotedAmountInRaw)
-            ? formatUnits(BigInt(quotedAmountInRaw), BASE_USDC_DECIMALS)
-            : null);
+        (quotedAmountInRaw && /^\d+$/.test(quotedAmountInRaw) ? formatUnits(BigInt(quotedAmountInRaw), BASE_USDC_DECIMALS) : null);
 
     return (
         <>
             <Head title="License It From Anywhere — Stanza Cross-Chain" />
-            <div className="min-h-screen bg-neutral-950 text-neutral-100 px-4 py-8 md:py-12 flex flex-col justify-between">
-                <div className="max-w-4xl mx-auto w-full">
-                    {/* Header */}
-                    <header className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-neutral-800 pb-5 gap-4">
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                                <span className="text-xs uppercase tracking-widest text-emerald-400 font-mono font-semibold">
-                                    NEAR Intents 1Click + Chain Signatures MPC
-                                </span>
-                            </div>
-                            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mt-1">
-                                Stanza Cross-Chain Licensing
-                            </h1>
-                            <p className="text-sm text-neutral-400 mt-1">
-                                Connect wallet, click Buy, approve one payment. Settles on Base via NEAR MPC with zero server EVM keys.
-                            </p>
+            <PublicShell footerNote="Stanza Cross-Chain Licensing · Built with NEAR Intents 1Click & Chain Signatures MPC · Base Mainnet (8453)">
+                {/* Header */}
+                <header className="border-border mb-8 flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <span className="bg-success h-2.5 w-2.5 animate-pulse rounded-full" />
+                            <span className="text-muted-foreground font-mono text-xs font-semibold tracking-[0.08em] uppercase">
+                                NEAR Intents 1Click + Chain Signatures MPC
+                            </span>
                         </div>
-                        <div className="flex items-center gap-2.5">
-                            {walletAddress ? (
-                                <button
-                                    type="button"
-                                    data-testid="connected-wallet-badge"
-                                    onClick={handleSwitchWallet}
-                                    title="Click to switch wallet account"
-                                    className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-mono font-medium rounded-lg bg-emerald-950/50 hover:bg-emerald-900/50 border border-emerald-500/50 text-emerald-300 transition"
-                                >
-                                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                                    <span>
-                                        {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
-                                    </span>
-                                    <span className="text-[10px] text-emerald-400/80 border-l border-emerald-800 pl-2">
-                                        {walletChainId === BASE_CHAIN_ID ? 'Base' : `Chain ${walletChainId ?? '?'}`}
-                                    </span>
-                                </button>
-                            ) : (
-                                <button
-                                    type="button"
-                                    data-testid="connect-wallet-btn"
-                                    onClick={handleConnectWallet}
-                                    disabled={connectingWallet}
-                                    className="inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-semibold rounded-lg bg-emerald-500 hover:bg-emerald-400 text-neutral-950 transition disabled:opacity-50"
-                                >
-                                    {connectingWallet ? 'Connecting...' : 'Connect Wallet'}
-                                </button>
-                            )}
-                            <Link
-                                href="/lookup"
-                                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-mono font-medium rounded-lg bg-neutral-900 border border-neutral-800 hover:border-neutral-700 hover:bg-neutral-850 text-neutral-300 transition"
-                            >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
-                                License Lookup
-                            </Link>
-                        </div>
-                    </header>
-
-                    {error && (
-                        <div
-                            key={`top-err-${errorCount}`}
-                            data-testid="checkout-error-banner"
-                            className="mb-6 rounded-lg bg-rose-950/80 border border-rose-500/70 p-4 text-sm text-rose-100 flex items-start justify-between gap-3"
-                        >
-                            <span>{error}</span>
+                        <h1 className="text-foreground mt-2 text-4xl font-extrabold tracking-tight md:text-5xl">Stanza Cross-Chain Licensing</h1>
+                        <p className="text-muted-foreground mt-2 max-w-[60ch] text-base leading-relaxed">
+                            Connect wallet, click Buy, approve one payment. Settles on Base via NEAR MPC with zero server EVM keys.
+                        </p>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+                        {walletAddress ? (
                             <button
                                 type="button"
-                                onClick={() => setError(null)}
-                                className="text-xs font-mono text-rose-300 hover:text-white shrink-0"
+                                data-testid="connected-wallet-badge"
+                                onClick={handleSwitchWallet}
+                                title="Click to switch wallet account"
+                                className="border-border bg-card text-foreground hover:border-input inline-flex min-h-11 items-center gap-2 rounded-full border px-3.5 py-2 font-mono text-xs font-medium transition"
                             >
-                                ✕
+                                <span className="bg-success h-2 w-2 rounded-full" />
+                                <span>
+                                    {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                                </span>
+                                <span className="border-border text-muted-foreground border-l pl-2 text-[10px]">
+                                    {walletChainId === BASE_CHAIN_ID ? 'Base' : `Chain ${walletChainId ?? '?'}`}
+                                </span>
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                data-testid="connect-wallet-btn"
+                                onClick={handleConnectWallet}
+                                disabled={connectingWallet}
+                                className="bg-accent text-accent-foreground hover:bg-accent-deep inline-flex min-h-11 items-center gap-2 rounded-full px-4 py-2 font-mono text-xs font-semibold transition disabled:opacity-50"
+                            >
+                                {connectingWallet ? 'Connecting...' : 'Connect Wallet'}
+                            </button>
+                        )}
+                        <Link
+                            href="/lookup"
+                            className="border-border bg-card text-foreground hover:border-input inline-flex min-h-11 items-center gap-2 rounded-full border px-4 py-2 font-mono text-xs font-medium transition"
+                        >
+                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            License Lookup
+                        </Link>
+                    </div>
+                </header>
+
+                {error && (
+                    <div
+                        key={`top-err-${errorCount}`}
+                        data-testid="checkout-error-banner"
+                        className="border-destructive bg-destructive/10 text-foreground mb-6 flex items-start justify-between gap-3 rounded-lg border p-4 text-sm"
+                    >
+                        <span>{error}</span>
+                        <button
+                            type="button"
+                            onClick={() => setError(null)}
+                            className="text-muted-foreground hover:text-foreground inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full font-mono text-xs transition"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+                    {/* Left Column: Form & Work Selection */}
+                    <div className="space-y-6 lg:col-span-7">
+                        {/* Step 1: Work Selection */}
+                        <div className="border-border bg-card rounded-lg border p-5 shadow-sm sm:p-6">
+                            <label className="text-muted-foreground mb-3 block font-mono text-xs font-semibold tracking-[0.08em] uppercase">
+                                1. Select Scholarly Manuscript
+                            </label>
+                            <div className="space-y-3">
+                                {works.map((work) => {
+                                    const isSelected = work.id === activeWork.id;
+                                    return (
+                                        <div
+                                            key={work.id}
+                                            onClick={() => setSelectedWorkId(work.id)}
+                                            className={`cursor-pointer rounded-sm border p-4 transition ${
+                                                isSelected
+                                                    ? 'border-accent bg-accent-soft ring-accent/50 ring-1'
+                                                    : 'border-border bg-background hover:border-input'
+                                            }`}
+                                        >
+                                            <div className="flex items-start justify-between gap-2">
+                                                <h3 className="text-foreground text-base leading-snug font-semibold">{work.title}</h3>
+                                                {isSelected && (
+                                                    <span className="bg-accent text-accent-foreground rounded-full px-2 py-1 font-mono text-[10px] font-semibold uppercase">
+                                                        Selected
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-muted-foreground mt-1 text-xs">
+                                                Scholar:{' '}
+                                                <Link
+                                                    href={`/scholar/${work.scholar_address}`}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="text-foreground decoration-accent/60 hover:decoration-accent font-medium underline underline-offset-4"
+                                                >
+                                                    {work.scholar_name}
+                                                </Link>
+                                            </p>
+                                            <p className="text-muted-foreground mt-1 truncate font-mono text-[11px]">
+                                                Base Address:{' '}
+                                                <Link
+                                                    href={`/scholar/${work.scholar_address}`}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="text-muted-foreground decoration-accent/60 hover:text-foreground hover:decoration-accent underline underline-offset-4"
+                                                >
+                                                    {work.scholar_address}
+                                                </Link>
+                                            </p>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Step 2: License Tier Selection */}
+                        <div className="border-border bg-card rounded-lg border p-5 shadow-sm sm:p-6">
+                            <label className="text-muted-foreground mb-3 block font-mono text-xs font-semibold tracking-[0.08em] uppercase">
+                                2. Select License Tier
+                            </label>
+                            <div className="grid grid-cols-3 gap-3">
+                                {['read', 'citation', 'commercial'].map((tierKey) => {
+                                    const price = Number(activeWork?.tiers[tierKey] ?? 0);
+                                    const isSelected = selectedTier === tierKey;
+                                    return (
+                                        <button
+                                            type="button"
+                                            key={tierKey}
+                                            aria-pressed={isSelected}
+                                            onClick={() => setSelectedTier(tierKey)}
+                                            className={`rounded-sm border p-3 text-center transition ${
+                                                isSelected
+                                                    ? 'border-primary bg-primary text-primary-foreground'
+                                                    : 'border-border bg-background text-foreground hover:border-input'
+                                            }`}
+                                        >
+                                            <div className="font-mono text-xs font-semibold tracking-[0.08em] uppercase">{tierKey}</div>
+                                            <div className="mt-1 text-lg font-bold tabular-nums">${price.toFixed(2)}</div>
+                                            <div
+                                                className={`mt-0.5 text-[10px] ${isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}
+                                            >
+                                                USDC on Base
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Step 3: Wallet & One-Tap Buy */}
+                        <div className="border-border bg-card rounded-lg border p-5 shadow-sm sm:p-6">
+                            <div className="mb-3 flex items-center justify-between gap-2">
+                                <label className="text-muted-foreground block font-mono text-xs font-semibold tracking-[0.08em] uppercase">
+                                    3. Buyer Wallet & Checkout
+                                </label>
+                                {walletAddress ? (
+                                    <button
+                                        type="button"
+                                        onClick={handleSwitchWallet}
+                                        disabled={connectingWallet}
+                                        className="text-foreground decoration-accent/60 hover:decoration-accent inline-flex min-h-11 shrink-0 items-center font-mono text-xs underline underline-offset-4"
+                                    >
+                                        {connectingWallet ? 'Switching...' : 'Switch Account →'}
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={handleConnectWallet}
+                                        disabled={connectingWallet}
+                                        className="text-foreground decoration-accent/60 hover:decoration-accent inline-flex min-h-11 shrink-0 items-center font-mono text-xs underline underline-offset-4"
+                                    >
+                                        {connectingWallet ? 'Connecting...' : 'Connect Wallet →'}
+                                    </button>
+                                )}
+                            </div>
+
+                            {error && (
+                                <div
+                                    key={`step3-err-${errorCount}`}
+                                    className="border-destructive bg-destructive/10 text-foreground mb-3 rounded-lg border p-3 text-xs"
+                                >
+                                    {error}
+                                </div>
+                            )}
+
+                            <div>
+                                <div className="mb-1 flex items-center justify-between">
+                                    <label className="text-muted-foreground block font-mono text-xs">Buyer EVM Address (Licensee)</label>
+                                    {walletAddress && (
+                                        <span className="text-foreground inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold">
+                                            <span className="bg-success h-1.5 w-1.5 rounded-full" />
+                                            Connected & Locked
+                                        </span>
+                                    )}
+                                </div>
+                                <input
+                                    type="text"
+                                    data-testid="buyer-address-input"
+                                    value={buyerAddress}
+                                    readOnly={Boolean(walletAddress)}
+                                    onChange={(e) => {
+                                        if (!walletAddress) {
+                                            setBuyerAddress(e.target.value);
+                                        }
+                                    }}
+                                    className={`min-h-11 w-full rounded-sm border px-3 py-2 font-mono text-xs transition ${
+                                        walletAddress
+                                            ? 'border-accent/40 bg-muted text-muted-foreground cursor-not-allowed'
+                                            : 'border-input bg-background text-foreground focus:border-ring'
+                                    }`}
+                                    placeholder="Connect wallet to auto-fill (0x...)"
+                                    required
+                                />
+                                <p className="text-muted-foreground mt-1 text-[11px]">
+                                    The address recorded as the verified buyer on Base LicenseRegistry.
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                data-testid="buy-license-btn"
+                                onClick={handleBuy}
+                                disabled={loading}
+                                className="bg-accent text-accent-foreground hover:bg-accent-deep mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold transition disabled:opacity-50"
+                            >
+                                {loading ? <span>Preparing 1Click Quote...</span> : <span>Buy (${currentPrice.toFixed(2)} USD)</span>}
                             </button>
                         </div>
-                    )}
+                    </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                        {/* Left Column: Form & Work Selection */}
-                        <div className="lg:col-span-7 space-y-6">
-                            {/* Step 1: Work Selection */}
-                            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5 sm:p-6 shadow-sm">
-                                <label className="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-3">
-                                    1. Select Scholarly Manuscript
-                                </label>
-                                <div className="space-y-3">
-                                    {works.map((work) => {
-                                        const isSelected = work.id === activeWork.id;
-                                        return (
-                                            <div
-                                                key={work.id}
-                                                onClick={() => setSelectedWorkId(work.id)}
-                                                className={`cursor-pointer rounded-lg p-4 border transition ${
-                                                    isSelected
-                                                        ? 'border-emerald-500 bg-neutral-850/80 ring-1 ring-emerald-500/50'
-                                                        : 'border-neutral-800 bg-neutral-950/50 hover:border-neutral-700'
-                                                }`}
-                                            >
-                                                <div className="flex items-start justify-between gap-2">
-                                                    <h3 className="font-semibold text-white text-sm leading-snug">
-                                                        {work.title}
-                                                    </h3>
-                                                    {isSelected && (
-                                                        <span className="text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">
-                                                            Selected
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <p className="text-xs text-neutral-400 mt-1">
-                                                    Scholar:{' '}
-                                                    <Link
-                                                        href={`/scholar/${work.scholar_address}`}
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        className="text-neutral-300 hover:text-emerald-400 hover:underline"
-                                                    >
-                                                        {work.scholar_name}
-                                                    </Link>
-                                                </p>
-                                                <p className="text-[11px] font-mono text-neutral-500 truncate mt-0.5">
-                                                    Base Address:{' '}
-                                                    <Link
-                                                        href={`/scholar/${work.scholar_address}`}
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        className="text-neutral-500 hover:text-emerald-400"
-                                                    >
-                                                        {work.scholar_address}
-                                                    </Link>
-                                                </p>
+                    {/* Right Column: Quote & MPC Settlement Card */}
+                    <div className="lg:col-span-5">
+                        <div className="border-border bg-card sticky top-32 rounded-lg border p-6 shadow-sm">
+                            <h2 className="border-border text-muted-foreground border-b pb-3 font-mono text-sm font-semibold tracking-[0.08em] uppercase">
+                                Settlement Summary
+                            </h2>
+
+                            {!currentLicense ? (
+                                <div className="text-muted-foreground py-12 text-center font-mono text-xs leading-relaxed">
+                                    Connect wallet, select a manuscript, and click &ldquo;Buy&rdquo; to prepare your one-tap payment.
+                                </div>
+                            ) : (
+                                <div className="mt-4 space-y-5">
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div>
+                                            <span className="text-muted-foreground font-mono text-[11px] tracking-[0.08em] uppercase">Status</span>
+                                            <div className="mt-1 flex items-center gap-2">
+                                                <span
+                                                    className={`h-2.5 w-2.5 rounded-full ${
+                                                        currentLicense.status === 'settled' ? 'bg-success' : 'bg-warning animate-pulse'
+                                                    }`}
+                                                />
+                                                <span data-testid="license-status" className="text-foreground font-mono text-sm font-bold uppercase">
+                                                    {currentLicense.status}
+                                                </span>
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            {/* Step 2: License Tier Selection */}
-                            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5 sm:p-6 shadow-sm">
-                                <label className="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-3">
-                                    2. Select License Tier
-                                </label>
-                                <div className="grid grid-cols-3 gap-3">
-                                    {['read', 'citation', 'commercial'].map((tierKey) => {
-                                        const price = Number(activeWork?.tiers[tierKey] ?? 0);
-                                        const isSelected = selectedTier === tierKey;
-                                        return (
-                                            <button
-                                                type="button"
-                                                key={tierKey}
-                                                onClick={() => setSelectedTier(tierKey)}
-                                                className={`rounded-lg p-3 text-center border transition ${
-                                                    isSelected
-                                                        ? 'border-emerald-500 bg-emerald-950/30 text-white'
-                                                        : 'border-neutral-800 bg-neutral-950/40 text-neutral-400 hover:border-neutral-700'
-                                                }`}
-                                            >
-                                                <div className="text-xs uppercase font-mono tracking-wider font-semibold">
-                                                    {tierKey}
+                                        </div>
+                                        {quotedAmountFormatted && (
+                                            <div className="text-right">
+                                                <span className="text-muted-foreground font-mono text-[11px] tracking-[0.08em] uppercase">
+                                                    Exact Quote Amount
+                                                </span>
+                                                <div
+                                                    data-testid="quoted-amount-display"
+                                                    className="text-foreground mt-1 font-mono text-sm font-bold tabular-nums"
+                                                >
+                                                    {quotedAmountFormatted} USDC
                                                 </div>
-                                                <div className="text-lg font-bold text-white mt-1">
-                                                    ${price.toFixed(2)}
-                                                </div>
-                                                <div className="text-[10px] text-neutral-500 mt-0.5">
-                                                    USDC on Base
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            {/* Step 3: Wallet & One-Tap Buy */}
-                            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5 sm:p-6 shadow-sm">
-                                <div className="flex items-center justify-between mb-3">
-                                    <label className="block text-xs font-mono uppercase tracking-wider text-neutral-400">
-                                        3. Buyer Wallet & Checkout
-                                    </label>
-                                    {walletAddress ? (
-                                        <button
-                                            type="button"
-                                            onClick={handleSwitchWallet}
-                                            disabled={connectingWallet}
-                                            className="text-xs font-mono text-emerald-400 hover:text-emerald-300 underline"
-                                        >
-                                            {connectingWallet ? 'Switching...' : 'Switch Account →'}
-                                        </button>
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            onClick={handleConnectWallet}
-                                            disabled={connectingWallet}
-                                            className="text-xs font-mono text-emerald-400 hover:text-emerald-300 underline"
-                                        >
-                                            {connectingWallet ? 'Connecting...' : 'Connect Wallet →'}
-                                        </button>
-                                    )}
-                                </div>
-
-                                {error && (
-                                    <div
-                                        key={`step3-err-${errorCount}`}
-                                        className="mb-3 rounded-lg bg-rose-950/80 border border-rose-500/70 p-3 text-xs text-rose-100"
-                                    >
-                                        {error}
-                                    </div>
-                                )}
-
-                                <div>
-                                    <div className="flex items-center justify-between mb-1">
-                                        <label className="block text-xs font-mono text-neutral-400">
-                                            Buyer EVM Address (Licensee)
-                                        </label>
-                                        {walletAddress && (
-                                            <span className="text-[10px] font-mono text-emerald-400">
-                                                Connected & Locked
-                                            </span>
+                                            </div>
                                         )}
                                     </div>
-                                    <input
-                                        type="text"
-                                        data-testid="buyer-address-input"
-                                        value={buyerAddress}
-                                        readOnly={Boolean(walletAddress)}
-                                        onChange={(e) => {
-                                            if (!walletAddress) {
-                                                setBuyerAddress(e.target.value);
-                                            }
-                                        }}
-                                        className={`w-full bg-neutral-950 border rounded-lg px-3 py-2 text-xs font-mono transition ${
-                                            walletAddress
-                                                ? 'border-emerald-500/40 text-emerald-300 cursor-not-allowed'
-                                                : 'border-neutral-800 text-neutral-200 focus:outline-none focus:border-emerald-500'
-                                        }`}
-                                        placeholder="Connect wallet to auto-fill (0x...)"
-                                        required
-                                    />
-                                    <p className="text-[11px] text-neutral-500 mt-1">
-                                        The address recorded as the verified buyer on Base LicenseRegistry.
-                                    </p>
-                                </div>
 
-                                <button
-                                    type="button"
-                                    data-testid="buy-license-btn"
-                                    onClick={handleBuy}
-                                    disabled={loading}
-                                    className="mt-5 w-full py-3 px-4 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-semibold text-sm transition flex items-center justify-center gap-2 disabled:opacity-50"
-                                >
-                                    {loading ? (
-                                        <span>Preparing 1Click Quote...</span>
-                                    ) : (
-                                        <span>Buy (${currentPrice.toFixed(2)} USD)</span>
-                                    )}
-                                </button>
-                            </div>
-                        </div>
+                                    {/* Primary Seamless One-Tap Pay Action */}
+                                    {currentLicense.status !== 'settled' && currentLicense.deposit_address && (
+                                        <div className="space-y-2.5">
+                                            <button
+                                                type="button"
+                                                data-testid="pay-now-btn"
+                                                onClick={handlePay}
+                                                disabled={paying || !quotedAmountInRaw}
+                                                className="bg-accent text-accent-foreground shadow-glow hover:bg-accent-deep flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-4 py-3.5 text-sm font-bold transition disabled:opacity-50"
+                                            >
+                                                {paying ? (
+                                                    <span>Confirm in Wallet...</span>
+                                                ) : (
+                                                    <span>Pay {quotedAmountFormatted ? `${quotedAmountFormatted} USDC` : 'Now'}</span>
+                                                )}
+                                            </button>
 
-                        {/* Right Column: Quote & MPC Settlement Card */}
-                        <div className="lg:col-span-5">
-                            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 sticky top-6 shadow-xl">
-                                <h2 className="text-sm font-mono uppercase tracking-wider text-neutral-400 border-b border-neutral-800 pb-3">
-                                    Settlement Summary
-                                </h2>
-
-                                {!currentLicense ? (
-                                    <div className="py-12 text-center text-neutral-500 text-xs font-mono">
-                                        Connect wallet, select a manuscript, and click &ldquo;Buy&rdquo; to prepare your one-tap payment.
-                                    </div>
-                                ) : (
-                                    <div className="mt-4 space-y-5">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <span className="text-[11px] uppercase font-mono text-neutral-500">Status</span>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <span
-                                                        className={`h-2.5 w-2.5 rounded-full ${
-                                                            currentLicense.status === 'settled'
-                                                                ? 'bg-emerald-400'
-                                                                : 'bg-amber-400 animate-pulse'
-                                                        }`}
-                                                    />
-                                                    <span
-                                                        data-testid="license-status"
-                                                        className="text-sm font-bold uppercase font-mono text-white"
-                                                    >
-                                                        {currentLicense.status}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            {quotedAmountFormatted && (
-                                                <div className="text-right">
-                                                    <span className="text-[11px] uppercase font-mono text-neutral-500">
-                                                        Exact Quote Amount
-                                                    </span>
-                                                    <div
-                                                        data-testid="quoted-amount-display"
-                                                        className="text-sm font-bold font-mono text-emerald-400 mt-1"
-                                                    >
-                                                        {quotedAmountFormatted} USDC
+                                            {paymentTxHash && (
+                                                <div className="border-success/40 bg-success/10 text-foreground rounded-sm border p-2.5 font-mono text-xs">
+                                                    <div className="font-semibold">✓ Payment submitted on Base</div>
+                                                    <div className="text-muted-foreground mt-0.5 truncate text-[11px]">Tx: {paymentTxHash}</div>
+                                                    <div className="text-muted-foreground mt-1 text-[11px]">
+                                                        Waiting for 1Click verification & NEAR MPC settlement...
                                                     </div>
                                                 </div>
                                             )}
-                                        </div>
 
-                                        {/* Primary Seamless One-Tap Pay Action */}
-                                        {currentLicense.status !== 'settled' && currentLicense.deposit_address && (
-                                            <div className="space-y-2.5">
+                                            {preparedTransfer && !paymentTxHash && (
+                                                <div
+                                                    data-testid="prepared-transfer-details"
+                                                    className="border-border bg-background text-muted-foreground space-y-1 rounded-sm border p-2.5 font-mono text-[11px]"
+                                                >
+                                                    <div className="text-foreground font-semibold">Wallet Transfer Request (Base 8453)</div>
+                                                    <div className="truncate">Token: {BASE_USDC_ADDRESS}</div>
+                                                    <div className="truncate">To: {preparedTransfer.to}</div>
+                                                    <div>
+                                                        Amount: {preparedTransfer.amountFormatted} USDC ({preparedTransfer.amountIn} units)
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Small manual fallback line */}
+                                            <div className="text-muted-foreground flex items-center justify-between gap-2 pt-1 font-mono text-[11px]">
+                                                <span className="truncate">
+                                                    or send manually to{' '}
+                                                    <span data-testid="fallback-deposit-address" className="text-foreground select-all">
+                                                        {currentLicense.deposit_address}
+                                                    </span>
+                                                </span>
                                                 <button
                                                     type="button"
-                                                    data-testid="pay-now-btn"
-                                                    onClick={handlePay}
-                                                    disabled={paying || !quotedAmountInRaw}
-                                                    className="w-full py-3.5 px-4 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/50 disabled:opacity-50"
+                                                    onClick={copyDepositAddress}
+                                                    className="border-border bg-card text-foreground hover:border-input inline-flex min-h-11 shrink-0 items-center rounded-full border px-3 text-[10px] transition"
+                                                    title="Copy deposit address"
                                                 >
-                                                    {paying ? (
-                                                        <span>Confirm in Wallet...</span>
-                                                    ) : (
-                                                        <span>
-                                                            Pay {quotedAmountFormatted ? `${quotedAmountFormatted} USDC` : 'Now'}
-                                                        </span>
-                                                    )}
+                                                    {copied ? 'Copied' : 'Copy'}
                                                 </button>
-
-                                                {paymentTxHash && (
-                                                    <div className="rounded-lg bg-emerald-950/40 border border-emerald-500/40 p-2.5 text-xs font-mono text-emerald-300">
-                                                        <div>✓ Payment submitted on Base</div>
-                                                        <div className="text-[11px] text-neutral-400 truncate mt-0.5">
-                                                            Tx: {paymentTxHash}
-                                                        </div>
-                                                        <div className="text-[11px] text-emerald-400/90 mt-1">
-                                                            Waiting for 1Click verification & NEAR MPC settlement...
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {preparedTransfer && !paymentTxHash && (
-                                                    <div
-                                                        data-testid="prepared-transfer-details"
-                                                        className="rounded-lg bg-neutral-950 border border-neutral-800 p-2.5 text-[11px] font-mono text-neutral-400 space-y-1"
-                                                    >
-                                                        <div className="text-emerald-400 font-semibold">
-                                                            Wallet Transfer Request (Base 8453)
-                                                        </div>
-                                                        <div className="truncate">
-                                                            Token: {BASE_USDC_ADDRESS}
-                                                        </div>
-                                                        <div className="truncate">
-                                                            To: {preparedTransfer.to}
-                                                        </div>
-                                                        <div>
-                                                            Amount: {preparedTransfer.amountFormatted} USDC ({preparedTransfer.amountIn} units)
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* Small manual fallback line */}
-                                                <div className="pt-1 text-[11px] font-mono text-neutral-500 flex items-center justify-between gap-2">
-                                                    <span className="truncate">
-                                                        or send manually to{' '}
-                                                        <span
-                                                            data-testid="fallback-deposit-address"
-                                                            className="text-neutral-400 select-all"
-                                                        >
-                                                            {currentLicense.deposit_address}
-                                                        </span>
-                                                    </span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={copyDepositAddress}
-                                                        className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 transition"
-                                                        title="Copy deposit address"
-                                                    >
-                                                        {copied ? 'Copied' : 'Copy'}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        <div className="space-y-2 text-xs font-mono border-t border-neutral-800 pt-4">
-                                            <div className="flex justify-between">
-                                                <span className="text-neutral-500">Work:</span>
-                                                <span className="text-neutral-200 truncate max-w-[180px]">
-                                                    {activeWork.title}
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-neutral-500">Scholar Address:</span>
-                                                <Link
-                                                    href={`/scholar/${activeWork.scholar_address}`}
-                                                    className="text-emerald-400 hover:underline"
-                                                    title={`View ${activeWork.scholar_name}'s licenses`}
-                                                >
-                                                    {activeWork.scholar_address.slice(0, 8)}...{activeWork.scholar_address.slice(-6)}
-                                                </Link>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-neutral-500">Tier:</span>
-                                                <span className="text-emerald-400 uppercase font-semibold">
-                                                    {currentLicense.tier}
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-neutral-500">Settlement Chain:</span>
-                                                <span className="text-neutral-200">Base Mainnet (8453)</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-neutral-500">Signing Authority:</span>
-                                                <span className="text-neutral-200">NEAR MPC (path ethereum-1)</span>
                                             </div>
                                         </div>
+                                    )}
 
-                                        {currentLicense.settlement_tx_hash && (
-                                            <div className="rounded-lg bg-neutral-950 border border-emerald-500/40 p-3 text-xs font-mono">
-                                                <div className="text-emerald-400 font-semibold mb-1">
-                                                    ✓ BaseScan Settlement Receipt
-                                                </div>
-                                                <a
-                                                    href={`https://basescan.org/tx/${currentLicense.settlement_tx_hash}`}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="text-neutral-400 hover:text-emerald-300 underline break-all"
-                                                >
-                                                    {currentLicense.settlement_tx_hash}
-                                                </a>
-                                                <div className="mt-2 text-[11px] text-neutral-400">
-                                                    Attestation: Scholar recognized on-chain in STANZA credit event.
-                                                </div>
-                                                <div className="mt-3 pt-2.5 border-t border-neutral-800">
+                                    <FactPanel
+                                        className="border-border border-t pt-4"
+                                        fields={[
+                                            {
+                                                label: 'Work:',
+                                                value: <span className="font-mono text-sm">{activeWork.title}</span>,
+                                            },
+                                            {
+                                                label: 'Scholar Address:',
+                                                value: (
                                                     <Link
                                                         href={`/scholar/${activeWork.scholar_address}`}
-                                                        className="text-emerald-400 hover:underline text-[11px] inline-flex items-center gap-1"
+                                                        className="text-foreground decoration-accent/60 hover:decoration-accent font-mono text-sm break-all underline underline-offset-4"
+                                                        title={`View ${activeWork.scholar_name}'s licenses`}
                                                     >
-                                                        View Scholar's Complete Portfolio →
+                                                        {activeWork.scholar_address.slice(0, 8)}...
+                                                        {activeWork.scholar_address.slice(-6)}
                                                     </Link>
-                                                </div>
+                                                ),
+                                            },
+                                            {
+                                                label: 'Tier:',
+                                                value: <span className="uppercase">{currentLicense.tier}</span>,
+                                            },
+                                            {
+                                                label: 'Settlement Chain:',
+                                                value: 'Base Mainnet (8453)',
+                                            },
+                                            {
+                                                label: 'Signing Authority:',
+                                                value: 'NEAR MPC (path ethereum-1)',
+                                            },
+                                        ]}
+                                    />
+
+                                    {currentLicense.settlement_tx_hash && (
+                                        <div className="border-success/40 bg-success/10 rounded-sm border p-3 font-mono text-xs">
+                                            <div className="text-foreground mb-1 font-semibold">✓ BaseScan Settlement Receipt</div>
+                                            <a
+                                                href={`https://basescan.org/tx/${currentLicense.settlement_tx_hash}`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="text-foreground decoration-accent/60 hover:decoration-accent break-all underline underline-offset-4"
+                                            >
+                                                {currentLicense.settlement_tx_hash}
+                                            </a>
+                                            <div className="text-muted-foreground mt-2 text-[11px] leading-relaxed">
+                                                Attestation: Scholar recognized on-chain in STANZA credit event.
                                             </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
+                                            <div className="border-border mt-3 border-t pt-2.5">
+                                                <Link
+                                                    href={`/scholar/${activeWork.scholar_address}`}
+                                                    className="text-foreground decoration-accent/60 hover:decoration-accent inline-flex min-h-11 items-center gap-1 text-[11px] underline underline-offset-4"
+                                                >
+                                                    View Scholar's Complete Portfolio →
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
-
-                {/* Footer */}
-                <footer className="mt-12 text-center text-xs font-mono text-neutral-600 border-t border-neutral-900 pt-6">
-                    Stanza Cross-Chain Licensing · Built with NEAR Intents 1Click & Chain Signatures MPC · Base Mainnet (8453)
-                </footer>
-            </div>
+            </PublicShell>
         </>
     );
 }
