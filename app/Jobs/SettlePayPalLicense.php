@@ -6,10 +6,12 @@ use App\Models\License;
 use App\Services\AttestationAgent;
 use App\Services\MpcSettlementService;
 use App\Services\PayPalService;
+use App\Services\ScholarNotificationService;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * Settles a PayPal license: the mirror of SettleLicense for the 1Click flow,
@@ -29,15 +31,26 @@ use Illuminate\Support\Facades\Log;
  *      key. Re-dispatching this job later (after the key exists) finishes
  *      the on-chain leg; it never captures twice.
  *
- * proofHash for PayPal licenses is keccak256('paypal:' . orderId), which
+ * proofHash for PayPal licenses is sha256('paypal:' . orderId), which
  * gives the same replay protection in LicenseRegistry.settled as the
- * 1Click deposit-tx proof hash.
+ * 1Click deposit-tx proof hash. (The doc draft said keccak256; the code
+ * has always used sha256, and in-flight licenses depend on it.)
  */
 class SettlePayPalLicense implements ShouldQueue
 {
     use Queueable;
 
     public License $license;
+
+    /**
+     * Bounded retries: the live worker runs with --tries=0 (WatchSettlement
+     * needs unlimited attempts), but a PayPal settle that throws must land
+     * in failed_jobs for human eyes instead of retrying forever — money
+     * may already be captured by that point. The job-level $tries
+     * overrides the worker's --tries. Matches SettleLicense's bounds.
+     */
+    public int $tries = 5;
+    public int $backoff = 60;
 
     public function __construct(License $license)
     {
@@ -172,6 +185,35 @@ class SettlePayPalLicense implements ShouldQueue
         Log::info("PayPal license #{$this->license->id} settled on Base", [
             'txHash' => $result['txHash'],
             'proofHash' => $proofHash,
+        ]);
+
+        // The sale is recorded; tell the scholar. Notification failure
+        // never fails the settlement — the service logs and returns false.
+        app(ScholarNotificationService::class)->notify($this->license);
+    }
+
+    /**
+     * All retries exhausted. The license is marked failed with the cause
+     * so the buyer sees what happened instead of a forever-pending card.
+     * When a capture already landed, the capture id stays on the row and
+     * the message says so — re-dispatching this job can still finish the
+     * on-chain leg, and it never captures twice.
+     */
+    public function failed(?Throwable $e = null): void
+    {
+        $license = License::find($this->license->id);
+        if (!$license || $license->status === 'settled') {
+            return;
+        }
+
+        $message = 'PayPal settlement failed: ' . ($e?->getMessage() ?? 'unknown error');
+        if ($license->paypal_capture_id) {
+            $message .= " Payment {$license->paypal_capture_id} was captured; re-dispatch this job to finish the on-chain leg.";
+        }
+
+        $license->update([
+            'status' => 'failed',
+            'error_message' => $message,
         ]);
     }
 

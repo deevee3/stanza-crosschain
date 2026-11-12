@@ -33,6 +33,7 @@ class License extends Model
         'status',
         'error_message',
         'settled_at',
+        'notification_sent_at',
     ];
 
     protected $casts = [
@@ -40,6 +41,7 @@ class License extends Model
         'quote_payload' => 'array',
         'attestation_payload' => 'array',
         'settled_at' => 'datetime',
+        'notification_sent_at' => 'datetime',
     ];
 
     public function work(): BelongsTo
