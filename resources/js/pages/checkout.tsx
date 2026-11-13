@@ -833,8 +833,8 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                                     ) : (
                                         <span>
                                             {selectedChain.id === 'base'
-                                                ? `Buy (${currentPrice.toFixed(2)} USD)`
-                                                : `Get Deposit Address (${currentPrice.toFixed(2)} USD)`}
+                                                ? `Buy ($${currentPrice.toFixed(2)} USD)`
+                                                : `Get Deposit Address ($${currentPrice.toFixed(2)} USD)`}
                                         </span>
                                     )}
                                 </button>
