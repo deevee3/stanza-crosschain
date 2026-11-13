@@ -3,7 +3,7 @@
 > **Live:** https://crosschain.spinwave.tech
 > **NEAR Beyond Boundaries Hackathon 2026**
 > **Tracks:** Real World, Autonomous Agents, Business, Open
-> **Status (Nov 12, 2026):** Live and settled. License #17 recorded on Base mainnet. `php artisan test` 81/81 green (365 assertions; 79/81 when a live `ONECLICK_JWT` is set in `.env` — see Step 4), `forge test` 4/4 green, `npm run build` clean.
+> **Status (Nov 13, 2026):** Live (`/`, `/checkout`, `/lookup` HTTP 200). Base mainnet settlement tx [`0x4c63981c…`](https://basescan.org/tx/0x4c63981c75e071a0bc9c0bc0765dbd750fb28ea37c08f4df775299acc6d33f22) verified on-chain (block 56562938, status 1). `php artisan test` 79 passed, 2 failed (362 assertions) with iMac `.env` as-is (live `ONECLICK_JWT`), 81/81 passed (365 assertions) when `ONECLICK_JWT=""` reaches PHP — see Step 4; `forge test` 4/4 passed; `npm run build` clean.
 
 ---
 
@@ -187,11 +187,16 @@ Run the full Laravel test suite covering OneClick quotes, the chain picker, watc
 php artisan test
 ```
 
-**Expected output (Nov 12, 2026):**
+**Expected output (Nov 13, 2026):**
+With `ONECLICK_JWT` empty inside PHP (no live JWT in `.env`, or `-e ONECLICK_JWT=""` passed directly to `docker run`):
 ```
 Tests:    81 passed (365 assertions)
 ```
-*(Note: If a live `ONECLICK_JWT` is set in `.env`, `php artisan test` reports `79 passed, 2 failed (362 assertions)` because 2 unit-mock tests in `ChainPickerTest` dispatch `WatchSettlement` against the container's live `OneClickService` with `0xfakedeposit`; run `ONECLICK_JWT="" php artisan test` for `81/81` when `.env` is populated with live credentials.)*
+With a live `ONECLICK_JWT` in `.env` (iMac `.env` as-is; also what `ONECLICK_JWT="" php artisan test` outputs on the iMac host because `~/.local/bin/php` is a Docker wrapper that only forwards `HOME`):
+```
+Tests:    2 failed, 79 passed (362 assertions)
+```
+*(Note: With a live `ONECLICK_JWT` in `.env`, 2 tests in `ChainPickerTest` (`quote job sends refund address as refund to` and `quote job falls back to buyer address without refund address`) fail with `1Click API status error (404)` at `app/Services/OneClickService.php:142` because `RequestLicenseQuote` dispatches `WatchSettlement` against the container's live `OneClickService` with `0xfakedeposit` / `0xfakedeposit2`. On native PHP, run `ONECLICK_JWT="" php artisan test` for `81/81`; through `~/.local/bin/php` on this host, pass `-e ONECLICK_JWT=""` directly to `docker run` to override `.env`.)*
 
 Suite breakdown — Unit (15): `EthereumSignatureServiceTest` (6), `MpcSettlementServiceTest` (3), `WorkTest` (5), `ExampleTest` (1). Feature (66): `ChainPickerTest` (19), `CheckoutTest` (5), `OneClickAgentTest` (5), `PayPalCheckoutTest` (11), `ScholarNotificationTest` (8), `ScholarTest` (3), `WorkUploadTest` (15).
 
