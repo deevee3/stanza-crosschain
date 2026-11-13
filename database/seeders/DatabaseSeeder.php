@@ -26,7 +26,7 @@ class DatabaseSeeder extends Seeder
                 'metadata_uri' => 'https://github.com/deevee3/stanza-crosschain/blob/main/docs/manuscripts/qf-replication.md',
                 'description' => 'Independent replication study by D\'Vaughn House (Glenride) verifying Propositions 1-5 and the Section 5.2 collusion arithmetic of Buterin, Hitzig & Weyl (2020), arXiv:1809.06421v2. The original paper is cited as the work being replicated; it is not claimed as the author\'s work. Licensing this manuscript licenses the replication study.',
                 'tiers' => [
-                    'read' => 10.00,
+                    'read' => 1.00,
                     'citation' => 25.00,
                     'commercial' => 150.00,
                     'exclusive' => 500.00,
@@ -42,7 +42,7 @@ class DatabaseSeeder extends Seeder
                 'metadata_uri' => 'https://github.com/deevee3/stanza-crosschain/blob/main/docs/manuscripts/stanza-license-design.md',
                 'description' => 'Design manuscript by D\'Vaughn House (Glenride) for the stanza-crosschain system: NEAR Intents 1Click settles USDC on Base to the scholar, NEAR Chain Signatures MPC authorizes the record with no EVM private key, and LicenseRegistry records the license with replay protection. STANZA credit is on-chain recognition, not a token transfer.',
                 'tiers' => [
-                    'read' => 10.00,
+                    'read' => 1.00,
                     'citation' => 25.00,
                     'commercial' => 150.00,
                     'exclusive' => 500.00,
@@ -58,7 +58,7 @@ class DatabaseSeeder extends Seeder
                 'metadata_uri' => 'https://github.com/deevee3/stanza-crosschain/blob/main/docs/manuscripts/harness-replication.md',
                 'description' => 'Independent replication study by D\'Vaughn House (Glenride) verifying the empirical claims and reconstructed mechanisms of Barbaste, Darrigol, Vu & Wiltberger (2026), arXiv:2609.00006v1 — including the twin absences (0/11 agentic frameworks, 0/11 code RAG), the 9/11 multi-agent census, and Listing 3\'s Minimum Viable Harness. The original paper is cited as the work being replicated; it is not claimed as the author\'s work. Licensing this manuscript licenses the replication study.',
                 'tiers' => [
-                    'read' => 10.00,
+                    'read' => 1.00,
                     'citation' => 25.00,
                     'commercial' => 150.00,
                     'exclusive' => 500.00,
