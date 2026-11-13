@@ -28,7 +28,7 @@ class WorkTest extends TestCase
     {
         $work = new Work(['tiers' => []]);
 
-        $this->assertSame(10.00, $work->tierPrice('not-a-tier'));
+        $this->assertSame(1.00, $work->tierPrice('not-a-tier'));
     }
 
     public function test_term_for_uses_stored_terms_first(): void

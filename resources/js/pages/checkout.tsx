@@ -104,7 +104,7 @@ const chainById = (id: string | null | undefined) => DEPOSIT_CHAINS.find((c) => 
 const TIER_KEYS = ['read', 'citation', 'commercial', 'exclusive'];
 
 const TIER_DEFAULTS: Record<string, number> = {
-    read: 10,
+    read: 1,
     citation: 25,
     commercial: 150,
     exclusive: 500,

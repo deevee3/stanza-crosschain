@@ -19,7 +19,7 @@ class Work extends Model
      * The exclusive tier price is a placeholder until D'Vaughn sets it.
      */
     public const TIER_DEFAULTS = [
-        'read' => 10.00,
+        'read' => 1.00,
         'citation' => 25.00,
         'commercial' => 150.00,
         'exclusive' => 500.00,

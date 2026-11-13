@@ -65,7 +65,7 @@ class WorkUploadTest extends TestCase
         $work = Work::where('slug', 'a-study-of-cross-chain-licensing')->firstOrFail();
         $this->assertSame($expectedHash, $work->content_hash);
         $this->assertSame($expectedHash, $work->work_id);
-        $this->assertEquals(['read' => 10.00, 'citation' => 25.00, 'commercial' => 150.00, 'exclusive' => 500.00], $work->tiers);
+        $this->assertEquals(['read' => 1.00, 'citation' => 25.00, 'commercial' => 150.00, 'exclusive' => 500.00], $work->tiers);
         $this->assertTrue($work->is_active);
         Storage::disk('local')->assertExists($work->file_path);
     }
