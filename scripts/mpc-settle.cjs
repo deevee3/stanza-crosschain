@@ -21,7 +21,7 @@ const { execSync } = require('child_process');
 function loadNearApi() {
   try {
     return require('near-api-js');
-  } catch (e) {
+  } catch {
     const candidatePaths = [
       '/home/housedv/.local/share/mise/installs/node/26.12.1/lib/node_modules/near-cli/node_modules',
       '/home/housedv/.local/share/mise/installs/node/26/lib/node_modules/near-cli/node_modules',
@@ -29,14 +29,14 @@ function loadNearApi() {
     try {
       const globalRoot = execSync('npm root -g', { encoding: 'utf8' }).trim();
       candidatePaths.push(path.join(globalRoot, 'near-cli', 'node_modules'));
-    } catch (_) {}
+    } catch { /* ignore */ }
 
     for (const p of candidatePaths) {
       if (fs.existsSync(p)) {
         module.paths.unshift(p);
         try {
           return require('near-api-js');
-        } catch (_) {}
+        } catch { /* ignore */ }
       }
     }
     throw new Error('near-api-js could not be loaded from workspace or near-cli global modules');
@@ -271,7 +271,7 @@ async function main() {
   try {
     const tipHex = await rpcCall(baseRpcUrl, 'eth_maxPriorityFeePerGas', []);
     if (tipHex) priorityFee = BigInt(tipHex);
-  } catch (_) {}
+  } catch { /* ignore */ }
 
   const latestBlock = await rpcCall(baseRpcUrl, 'eth_getBlockByNumber', ['latest', false]);
   const baseFee = BigInt(latestBlock.baseFeePerGas || '0x3b9aca00');
@@ -287,7 +287,7 @@ async function main() {
     if (estHex) {
       gasLimit = BigInt(Math.ceil(Number(BigInt(estHex)) * 1.25));
     }
-  } catch (_) {
+  } catch {
     // If estimate reverts (e.g. pre-check simulation), use standard gas limit
     gasLimit = 150000n;
   }
@@ -424,7 +424,7 @@ async function main() {
     try {
       receipt = await rpcCall(baseRpcUrl, 'eth_getTransactionReceipt', [txHash]);
       if (receipt && receipt.blockNumber) break;
-    } catch (_) {}
+    } catch { /* ignore */ }
     await new Promise(res => setTimeout(res, 1500));
   }
 

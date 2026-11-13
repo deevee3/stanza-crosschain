@@ -38,7 +38,7 @@ export default function Lookup({ initialQuery = '', license: initialLicense = nu
     const [query, setQuery] = useState<string>(initialQuery);
     const [license, setLicense] = useState<License | null>(initialLicense);
     const [loading, setLoading] = useState<boolean>(false);
-    const [searched, setSearched] = useState<boolean>(Boolean(initialQuery));
+    const [, setSearched] = useState<boolean>(Boolean(initialQuery));
     const [error, setError] = useState<string | null>(null);
 
     const handleSearch = async (e: React.FormEvent) => {

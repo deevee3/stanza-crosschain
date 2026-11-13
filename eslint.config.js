@@ -38,6 +38,24 @@ export default [
         },
     },
     {
+        // Node scripts: CommonJS, Node globals, require() is idiomatic.
+        files: ['scripts/**/*.cjs'],
+        languageOptions: {
+            globals: {
+                ...globals.node,
+            },
+        },
+        rules: {
+            '@typescript-eslint/no-require-imports': 'off',
+        },
+    },
+    {
+        // `any` is the established pattern for wallet/error interop here.
+        rules: {
+            '@typescript-eslint/no-explicit-any': 'off',
+        },
+    },
+    {
         ignores: ['vendor', 'node_modules', 'public', 'bootstrap/ssr', 'tailwind.config.js'],
     },
     prettier, // Turn off all rules that might conflict with Prettier
