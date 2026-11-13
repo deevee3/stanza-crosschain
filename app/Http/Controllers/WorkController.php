@@ -14,6 +14,17 @@ use Inertia\Response;
 class WorkController extends Controller
 {
     /**
+     * Display the scholar manuscript upload page.
+     */
+    public function create(): Response
+    {
+        return Inertia::render('upload', [
+            'tierDefaults' => Work::TIER_DEFAULTS,
+            'defaultTerms' => Work::DEFAULT_TERMS,
+        ]);
+    }
+
+    /**
      * Display the shareable, guest-facing work page.
      */
     public function show(string $slug): Response

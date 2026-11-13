@@ -4,6 +4,7 @@ import {
     getAddress,
     numberToHex,
     parseAbi,
+    stringToHex,
     type Address,
     type Hex,
 } from 'viem';
@@ -346,3 +347,41 @@ export async function sendUsdcTransferOnBase(params: {
 
     return { txHash, prepared };
 }
+
+export async function signPersonalMessage(params: {
+    account: string;
+    message: string;
+}): Promise<Hex> {
+    const provider = getEthereumProvider();
+    if (!provider) {
+        throw new Error(
+            'No injected EVM wallet detected. Please connect MetaMask or Coinbase Wallet.',
+        );
+    }
+
+    const signerAddress = getAddress(params.account);
+    const hexMessage = stringToHex(params.message);
+
+    try {
+        const signature = (await provider.request({
+            method: 'personal_sign',
+            params: [hexMessage, signerAddress],
+        })) as Hex;
+
+        if (!signature || typeof signature !== 'string') {
+            throw new Error('Wallet did not return a valid EIP-191 signature.');
+        }
+
+        return signature;
+    } catch (err: any) {
+        if (err?.code === 4001) {
+            throw new Error('Signature request was rejected in the wallet prompt.');
+        }
+        throw new Error(
+            err?.shortMessage ||
+                err?.message ||
+                'Failed to sign upload authorization challenge in wallet.',
+        );
+    }
+}
+

@@ -320,4 +320,95 @@ class WorkUploadTest extends TestCase
 
         $this->get('/work/inactive-work')->assertNotFound();
     }
+
+    public function test_upload_page_renders_with_tier_defaults_and_default_terms(): void
+    {
+        $response = $this->get('/upload');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('upload')
+            ->where('tierDefaults', fn ($defaults) => $defaults->toArray() == Work::TIER_DEFAULTS)
+            ->where('defaultTerms', Work::DEFAULT_TERMS)
+        );
+    }
+
+    public function test_upload_flow_blank_tiers_apply_backend_defaults_and_work_url_renders(): void
+    {
+        Storage::fake('local');
+
+        $content = "# Replication Study\n\nSigned scholar upload from /upload UI.";
+        $file = UploadedFile::fake()->createWithContent('study.md', $content);
+
+        $response = $this->post('/api/works', array_merge([
+            'title' => 'Signed Upload UI Study',
+            'slug' => 'signed-upload-ui-study',
+            'scholar_address' => $this->scholarAddress,
+            'scholar_name' => 'Dr. Elena Rostova',
+            'scholar_email' => 'rostova@example.edu',
+            'description' => 'Uploaded via the scholar upload UI flow.',
+            'file' => $file,
+        ], $this->signedAuth()), ['Accept' => 'application/json']);
+
+        $response->assertCreated();
+        $response->assertJsonPath('slug', 'signed-upload-ui-study');
+        $response->assertJsonPath('url', url('/work/signed-upload-ui-study'));
+
+        $work = Work::where('slug', 'signed-upload-ui-study')->firstOrFail();
+        $this->assertEquals(Work::TIER_DEFAULTS, $work->tiers);
+        $this->assertNull($work->terms);
+
+        $this->get('/work/signed-upload-ui-study')->assertStatus(200);
+    }
+
+    public function test_upload_403_returns_verbatim_message_and_fresh_challenge_succeeds(): void
+    {
+        Storage::fake('local');
+
+        $challenge = $this->getJson('/api/upload-challenge?address=' . $this->scholarAddress);
+        $challenge->assertOk();
+        $wrongKey = '0x0000000000000000000000000000000000000000000000000000000000000002';
+
+        $forbidden = $this->post('/api/works', [
+            'title' => 'Retry After Fresh Challenge',
+            'scholar_address' => $this->scholarAddress,
+            'file' => UploadedFile::fake()->createWithContent('retry.txt', 'Manuscript bytes for fresh challenge retry.'),
+            'challenge_message' => $challenge->json('message'),
+            'signature' => EthereumSignatureService::sign($wrongKey, $challenge->json('message')),
+        ], ['Accept' => 'application/json']);
+
+        $forbidden->assertForbidden();
+        $forbidden->assertJsonPath(
+            'message',
+            'Upload authorization failed: the signature does not prove control of the scholar wallet, or the challenge expired. Request a fresh challenge and sign it with the scholar wallet.'
+        );
+
+        // Requesting a fresh challenge and signing with the scholar wallet succeeds
+        $retry = $this->post('/api/works', array_merge([
+            'title' => 'Retry After Fresh Challenge',
+            'scholar_address' => $this->scholarAddress,
+            'file' => UploadedFile::fake()->createWithContent('retry.txt', 'Manuscript bytes for fresh challenge retry.'),
+        ], $this->signedAuth()), ['Accept' => 'application/json']);
+
+        $retry->assertCreated();
+        $retry->assertJsonPath('slug', 'retry-after-fresh-challenge');
+    }
+
+    public function test_upload_validates_slug_email_and_tier_constraints(): void
+    {
+        Storage::fake('local');
+
+        $response = $this->post('/api/works', array_merge([
+            'title' => '',
+            'slug' => 'invalid slug with spaces!',
+            'scholar_address' => $this->scholarAddress,
+            'scholar_email' => 'not-an-email',
+            'file' => UploadedFile::fake()->createWithContent('valid.txt', 'Validation check bytes.'),
+            'tiers' => ['read' => -5],
+        ], $this->signedAuth()), ['Accept' => 'application/json']);
+
+        $response->assertUnprocessable();
+        $response->assertJsonValidationErrors(['title', 'slug', 'scholar_email', 'tiers.read']);
+        $this->assertSame(0, Work::count());
+    }
 }
