@@ -175,6 +175,40 @@ class ChainPickerTest extends TestCase
         $response->assertJsonValidationErrors('deposit_chain');
     }
 
+    /**
+     * Stub OneClickService in both the direct job call and the container so
+     * synchronously dispatched WatchSettlement never resolves the live service.
+     */
+    protected function mockOneClickQuoteService(?array &$captured, string $quoteId, string $depositAddress, string $amountIn): OneClickService
+    {
+        $mock = $this->createMock(OneClickService::class);
+        $mock->method('requestQuote')->willReturnCallback(function (array $params) use (&$captured, $quoteId, $depositAddress, $amountIn) {
+            $captured = $params;
+
+            return [
+                'quoteId' => $quoteId,
+                'depositAddress' => $depositAddress,
+                'originAsset' => $params['originAsset'],
+                'destinationAsset' => $params['destinationAsset'],
+                'amountIn' => $amountIn,
+                'amountOut' => $params['amount'],
+                'recipient' => $params['recipient'],
+                'refundTo' => $params['refundTo'],
+                'status' => 'PENDING_DEPOSIT',
+                'isStub' => true,
+            ];
+        });
+        $mock->method('getStatus')->willReturn([
+            'depositAddress' => $depositAddress,
+            'status' => 'PENDING_DEPOSIT',
+            'isStub' => true,
+        ]);
+
+        $this->app->instance(OneClickService::class, $mock);
+
+        return $mock;
+    }
+
     public function test_quote_job_sends_refund_address_as_refund_to(): void
     {
         $license = License::create([
@@ -189,23 +223,7 @@ class ChainPickerTest extends TestCase
         ]);
 
         $captured = null;
-        $mock = $this->createMock(OneClickService::class);
-        $mock->method('requestQuote')->willReturnCallback(function (array $params) use (&$captured) {
-            $captured = $params;
-
-            return [
-                'quoteId' => 'fake_quote_1',
-                'depositAddress' => '0xfakedeposit',
-                'originAsset' => $params['originAsset'],
-                'destinationAsset' => $params['destinationAsset'],
-                'amountIn' => '290000000000000000000000',
-                'amountOut' => $params['amount'],
-                'recipient' => $params['recipient'],
-                'refundTo' => $params['refundTo'],
-                'status' => 'PENDING_DEPOSIT',
-                'isStub' => true,
-            ];
-        });
+        $mock = $this->mockOneClickQuoteService($captured, 'fake_quote_1', '0xfakedeposit', '290000000000000000000000');
 
         $job = new RequestLicenseQuote($license);
         $job->handle($mock);
@@ -228,23 +246,7 @@ class ChainPickerTest extends TestCase
         ]);
 
         $captured = null;
-        $mock = $this->createMock(OneClickService::class);
-        $mock->method('requestQuote')->willReturnCallback(function (array $params) use (&$captured) {
-            $captured = $params;
-
-            return [
-                'quoteId' => 'fake_quote_2',
-                'depositAddress' => '0xfakedeposit2',
-                'originAsset' => $params['originAsset'],
-                'destinationAsset' => $params['destinationAsset'],
-                'amountIn' => '1000000000000000',
-                'amountOut' => $params['amount'],
-                'recipient' => $params['recipient'],
-                'refundTo' => $params['refundTo'],
-                'status' => 'PENDING_DEPOSIT',
-                'isStub' => true,
-            ];
-        });
+        $mock = $this->mockOneClickQuoteService($captured, 'fake_quote_2', '0xfakedeposit2', '1000000000000000');
 
         $job = new RequestLicenseQuote($license);
         $job->handle($mock);
