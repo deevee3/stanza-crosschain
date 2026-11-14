@@ -314,6 +314,11 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                 }
             }
 
+            const trimmedEmail = buyerEmail.trim().toLowerCase();
+            if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+                throw new Error('Enter a valid email address for delivery, or leave it blank.');
+            }
+
             let activeBuyer = buyerAddress.trim();
             if (!activeBuyer) {
                 const connected = await connectInjectedWallet();
@@ -336,6 +341,7 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                     work_id: activeWork.id,
                     tier: selectedTier,
                     buyer_address: activeBuyer,
+                    buyer_email: trimmedEmail ? trimmedEmail : undefined,
                     refund_address: needsRefundAddress ? trimmedRefund : undefined,
                     deposit_asset: selectedChain.asset,
                     deposit_chain: selectedChain.id,
@@ -530,6 +536,23 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                         </Link>
                     </div>
                 </header>
+
+                {/* Reader instructions */}
+                <section aria-label="How licensing works" className="border-border bg-card mb-8 rounded-lg border p-5">
+                    <h2 className="text-foreground text-lg font-bold tracking-tight">How it works</h2>
+                    <ol className="text-muted-foreground m-0 mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed">
+                        <li>Pick a work and a tier, then check out with your wallet or PayPal.</li>
+                        <li>Your payment settles on Base and your license is recorded on-chain.</li>
+                        <li>Leave an email and we will send you the licensed work as soon as it settles.</li>
+                        <li>
+                            Anytime after that, verify your license at{' '}
+                            <Link href="/lookup" className="text-foreground underline underline-offset-4">
+                                License Lookup
+                            </Link>{' '}
+                            with your transaction hash.
+                        </li>
+                    </ol>
+                </section>
 
                 {error && (
                     <div
@@ -800,6 +823,18 @@ export default function Checkout({ works, returnLicenseId }: Props) {
                                     />
                                     <p className="text-muted-foreground mt-1 text-[11px]">
                                         The address recorded as the verified buyer on Base LicenseRegistry.
+                                    </p>
+                                    <label className="text-muted-foreground mt-4 mb-1 block font-mono text-xs">Email for delivery (optional)</label>
+                                    <input
+                                        type="email"
+                                        data-testid="buyer-email-input-oneclick"
+                                        value={buyerEmail}
+                                        onChange={(e) => setBuyerEmail(e.target.value)}
+                                        className="border-input bg-background text-foreground focus:border-ring min-h-11 w-full rounded-sm border px-3 py-2 font-mono text-xs transition"
+                                        placeholder="you@example.com"
+                                    />
+                                    <p className="text-muted-foreground mt-1 text-[11px]">
+                                        We will email you the licensed work when it settles. Skip it and verify your license anytime at License Lookup.
                                     </p>
                                 </div>
                             ) : (

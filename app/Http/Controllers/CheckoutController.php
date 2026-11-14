@@ -45,6 +45,7 @@ class CheckoutController extends Controller
             'work_id' => 'required|exists:works,id',
             'tier' => 'required|string|in:read,citation,commercial,exclusive',
             'buyer_address' => ['required', 'string', 'regex:/^0x[a-fA-F0-9]{40}$/'],
+            'buyer_email' => 'nullable|string|email|max:255',
             'refund_address' => $refundRules,
             'deposit_asset' => 'required|string',
             'deposit_chain' => 'required|string|in:base,near,solana,arbitrum',
@@ -57,6 +58,7 @@ class CheckoutController extends Controller
         $license = License::create([
             'work_id' => $work->id,
             'buyer_address' => $validated['buyer_address'],
+            'buyer_email' => !empty($validated['buyer_email']) ? strtolower(trim($validated['buyer_email'])) : null,
             // EVM origins refund to the buyer address; NEAR/Solana refund
             // to the origin-chain address the buyer supplied.
             'refund_address' => $validated['refund_address'] ?? $validated['buyer_address'],

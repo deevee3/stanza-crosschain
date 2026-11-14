@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\License;
 use App\Services\MpcSettlementService;
 use App\Services\OneClickService;
+use App\Services\ReaderDeliveryService;
 use App\Services\ScholarNotificationService;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -113,5 +114,10 @@ class SettleLicense implements ShouldQueue
         // The sale is recorded; tell the scholar. Notification failure
         // never fails the settlement — the service logs and returns false.
         app(ScholarNotificationService::class)->notify($this->license);
+
+        // Same guarantee for the reader: deliver the licensed work by
+        // email when the buyer left one. Delivery failure never fails
+        // the settlement either.
+        app(ReaderDeliveryService::class)->deliver($this->license);
     }
 }
