@@ -99,6 +99,15 @@ export default function SiteHeader() {
                                     </Link>
                                 </li>
                             ))}
+                            <li className="m-0">
+                                <a
+                                    href="https://spinwave.tech"
+                                    onClick={() => setOpen(false)}
+                                    className="text-foreground flex min-h-11 items-center px-2.5 py-3 font-semibold no-underline hover:underline hover:underline-offset-4"
+                                >
+                                    SpinWave
+                                </a>
+                            </li>
                         </ul>
                     </nav>
                 </div>
